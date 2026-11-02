@@ -44,6 +44,26 @@ fn ::main() {
     var one_amt: f64[1] = [105.0];
     let cnpv, cok = cash::curve_npv(one_pay, one_amt, pillar_t, pillar_df, d08.serial, d08.serial, dc);
     if !cok || !near(cnpv, 99.879089572575, 1.0e-10) { fail("curve npv"); }
+    var times2: f64[2] = [1.0, 2.0];
+    var dfs2: f64[2] = [0.97, 0.9];
+    var pays: i32[2] = [d09.serial, d10.serial];
+    var amts: f64[2] = [5.0, 105.0];
+    let fitted, fitok = cash::fit_discount(pays, amts, times2, dfs2, d08.serial, d08.serial, dc, 100.0, 0.9);
+    if !fitok || !near(fitted, 0.906190476190476, 1.0e-10) { fail("fit"); }
+    let back, bok = cash::curve_npv(pays, amts, times2, dfs2, d08.serial, d08.serial, dc);
+    if !bok || !near(back, 100.0, 1.0e-8) { fail("fit price"); }
+    var bt: f64[2] = [0.0, 1.0];
+    var bd: f64[2] = [1.0, 0.9];
+    var bpay: i32[1] = [d09.serial];
+    var bamt: f64[1] = [105.0];
+    let df1, d1ok = cash::fit_discount(bpay, bamt, bt, bd, d08.serial, d08.serial, dc, 100.0, 0.9);
+    if !d1ok || !near(df1, 100.0 / 105.0, 1.0e-10) { fail("pillar 1"); }
+    var bt2: f64[3] = [0.0, 1.0, 2.0];
+    var bd2: f64[3] = [1.0, df1, 0.9];
+    var bpay2: i32[2] = [d09.serial, d10.serial];
+    var bamt2: f64[2] = [5.0, 105.0];
+    let df2, d2ok = cash::fit_discount(bpay2, bamt2, bt2, bd2, d08.serial, d08.serial, dc, 100.0, 0.9);
+    if !d2ok || !near(df2, (100.0 - 5.0 * df1) / 105.0, 1.0e-10) { fail("pillar 2"); }
     let acc, aok = cash::accrued(d08, d11, d09, 100.0, 0.05, dc);
     if !aok || !near(acc, 2.520547945205479, 1.0e-12) { fail("accrued"); }
 

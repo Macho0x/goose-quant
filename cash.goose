@@ -5,6 +5,7 @@ import date;
 import daycount;
 import rate;
 import curve;
+import solver;
 
 namespace cash;
 
@@ -62,6 +63,18 @@ fn curve_npv(pay: i32[:], amounts: f64[:], times: f64[:], discounts: f64[:], set
         i += 1;
     }
     return npv, true;
+}
+
+fn fit_discount(pay: i32[:], amounts: f64[:], times: f64[:], discounts: f64[:], settlement: i32, ref: i32, dc: daycount::Count, price: f64, guess: f64) -> f64, bool {
+    if discounts.len == 0 || times.len != discounts.len { return 0.0, false; }
+    let last = discounts.len - 1;
+    let df, ok = solver::brent(guess, 1.0e-4, 1.5, 1.0e-12, 80) {
+        discounts[last] = it;
+        let npv, nok = curve_npv(pay, amounts, times, discounts, settlement, ref, dc);
+        if nok { npv - price } else { 1.0 }
+    };
+    if ok { discounts[last] = df; }
+    return df, ok;
 }
 
 fn fra_amount(notional: f64, forward: f64, strike: f64, tau: f64, long_side: bool) -> f64, bool {
