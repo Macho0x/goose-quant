@@ -5,6 +5,7 @@ import quant.period;
 import quant.black;
 import quant.european;
 import quant.tree;
+import quant.baw;
 
 fn fail(msg: u8[:]) {
     write_stdout(msg);
@@ -21,7 +22,7 @@ fn fixed6(out: u8[>..]&, x: f64) {
     format(out, "      ");
 }
 
-fn row(name: u8[:], euro: f64, berm: f64, amer: f64, bermudan: bool, american: bool) {
+fn row(name: u8[:], euro: f64, berm: f64, amer: f64, european: bool, bermudan: bool, american: bool) {
     var line: u8[>..] = [];
     format(line, name);
     var i = name.len;
@@ -29,7 +30,7 @@ fn row(name: u8[:], euro: f64, berm: f64, amer: f64, bermudan: bool, american: b
         format(line, " ");
         i += 1;
     }
-    fixed6(line, euro);
+    if european { fixed6(line, euro); } else { format(line, "N/A           "); }
     if bermudan { fixed6(line, berm); } else { format(line, "N/A           "); }
     if american { fixed6(line, amer); } else { format(line, "N/A"); }
     format(line, "\n");
@@ -56,29 +57,32 @@ fn ::main() {
     let bs, bok = european::npv(black::PUT, spot, strike, r, q, vol, t);
     if !bok { fail("black"); }
     write_stdout("Method                             European        Bermudan        American\n");
-    row("Black-Scholes", bs, 0.0, 0.0, false, false);
+    row("Black-Scholes", bs, 0.0, 0.0, true, false, false);
+    let baw, wok = baw::npv(black::PUT, spot, strike, r, q, vol, t);
+    if !wok { fail("baw"); }
+    row("Barone-Adesi/Whaley", 0.0, 0.0, baw, false, false, true);
     let steps: i32 = 801;
     let e, b, a, ok = triple(spot, strike, r, q, vol, t, steps, stops, 0);
     if !ok { fail("jr"); }
-    row("Binomial Jarrow-Rudd", e, b, a, true, true);
+    row("Binomial Jarrow-Rudd", e, b, a, true, true, true);
     let e2, b2, a2, ok2 = triple(spot, strike, r, q, vol, t, steps, stops, 1);
     if !ok2 { fail("crr"); }
-    row("Binomial Cox-Ross-Rubinstein", e2, b2, a2, true, true);
+    row("Binomial Cox-Ross-Rubinstein", e2, b2, a2, true, true, true);
     let e3, b3, a3, ok3 = triple(spot, strike, r, q, vol, t, steps, stops, 2);
     if !ok3 { fail("additive"); }
-    row("Additive equiprobabilities", e3, b3, a3, true, true);
+    row("Additive equiprobabilities", e3, b3, a3, true, true, true);
     let e4, b4, a4, ok4 = triple(spot, strike, r, q, vol, t, steps, stops, 3);
     if !ok4 { fail("trigeorgis"); }
-    row("Binomial Trigeorgis", e4, b4, a4, true, true);
+    row("Binomial Trigeorgis", e4, b4, a4, true, true, true);
     let e5, b5, a5, ok5 = triple(spot, strike, r, q, vol, t, steps, stops, 4);
     if !ok5 { fail("tian"); }
-    row("Binomial Tian", e5, b5, a5, true, true);
+    row("Binomial Tian", e5, b5, a5, true, true, true);
     let e6, b6, a6, ok6 = triple(spot, strike, r, q, vol, t, steps, stops, 5);
     if !ok6 { fail("leisen"); }
-    row("Binomial Leisen-Reimer", e6, b6, a6, true, true);
+    row("Binomial Leisen-Reimer", e6, b6, a6, true, true, true);
     let e7, b7, a7, ok7 = triple(spot, strike, r, q, vol, t, steps, stops, 6);
     if !ok7 { fail("joshi"); }
-    row("Binomial Joshi", e7, b7, a7, true, true);
+    row("Binomial Joshi", e7, b7, a7, true, true, true);
     if a2 + 1.0e-8 < e2 { fail("exercise"); }
 }
 

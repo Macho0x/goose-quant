@@ -79,6 +79,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `JointCalendar` | `calendar::joint_business` |
 | `AnalyticBarrierEngine` | `barrier::npv` |
 | binomial vanilla trees | `tree::jr`, `tree::crr`, `tree::additive`, `tree::trigeorgis`, `tree::tian`, `tree::leisen`, `tree::joshi` |
+| `BaroneAdesiWhaleyApproximationEngine` | `baw::npv` |
 | `BondForward` | `examples/repo.goose` |
 | indexed-coupon FRA bootstrap | `examples/fra.goose` |
 
