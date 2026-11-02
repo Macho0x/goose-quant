@@ -114,3 +114,34 @@ fn par_rate(taus: f64[:], dfs: f64[:]) -> f64, bool {
     if level == 0.0 { return 0.0, false; }
     return (dfs[0] - dfs[dfs.len - 1]) / level, true;
 }
+
+// ponytail: the floating leg is the telescoping (df_start - df_end). Per-period
+// forwards are needed when a payment date is not the accrual end.
+fn swap_par(pay_t: f64[:], taus: f64[:], times: f64[:], discounts: f64[:], start_t: f64, end_t: f64) -> f64, bool {
+    if pay_t.len != taus.len || pay_t.len == 0 { return 0.0, false; }
+    let df0, ok0 = curve::log_linear_discount(times, discounts, start_t);
+    let df_end, eok = curve::log_linear_discount(times, discounts, end_t);
+    if !ok0 || !eok { return 0.0, false; }
+    var level = 0.0;
+    var i: i64 = 0;
+    while i < pay_t.len {
+        let df, ok = curve::log_linear_discount(times, discounts, pay_t[i]);
+        if !ok { return 0.0, false; }
+        level += taus[i] * df;
+        i += 1;
+    }
+    if level == 0.0 { return 0.0, false; }
+    return (df0 - df_end) / level, true;
+}
+
+fn fit_par(pay_t: f64[:], taus: f64[:], times: f64[:], discounts: f64[:], start_t: f64, end_t: f64, quote: f64, guess: f64) -> f64, bool {
+    if discounts.len == 0 || times.len != discounts.len { return 0.0, false; }
+    let last = discounts.len - 1;
+    let df, ok = solver::brent(guess, 1.0e-4, 1.5, 1.0e-12, 100) {
+        discounts[last] = it;
+        let par, pok = swap_par(pay_t, taus, times, discounts, start_t, end_t);
+        if pok { par - quote } else { 1.0 }
+    };
+    if ok { discounts[last] = df; }
+    return df, ok;
+}

@@ -38,7 +38,7 @@ Install the Goose compiler, then from this directory:
 goose tests/self_check.goose
 ```
 
-A good run prints `quant ok`. `tests/black_check.goose` prints `black ok`. `tests/money_check.goose` prints `money ok`. `tests/instruments_check.goose` prints `instruments ok`.
+A good run prints `quant ok`. `tests/black_check.goose` prints `black ok`. `tests/money_check.goose` prints `money ok`. `tests/instruments_check.goose` prints `instruments ok`. `tests/sample_bonds.goose` prints the Bonds example table and `sample bonds ok`.
 
 ## Benchmarks
 
