@@ -77,5 +77,9 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `ForwardRateAgreement` amount | `cash::fra_amount` |
 | par swap rate | `cash::par_rate` |
 | `JointCalendar` | `calendar::joint_business` |
+| `AnalyticBarrierEngine` | `barrier::npv` |
+| binomial vanilla trees | `tree::jr`, `tree::crr`, `tree::additive`, `tree::trigeorgis`, `tree::tian`, `tree::leisen`, `tree::joshi` |
+| `BondForward` | `examples/repo.goose` |
+| indexed-coupon FRA bootstrap | `examples/fra.goose` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.
