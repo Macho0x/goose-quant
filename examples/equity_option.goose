@@ -6,6 +6,7 @@ import quant.black;
 import quant.european;
 import quant.tree;
 import quant.baw;
+import quant.bjerk;
 
 fn fail(msg: u8[:]) {
     write_stdout(msg);
@@ -61,6 +62,9 @@ fn ::main() {
     let baw, wok = baw::npv(black::PUT, spot, strike, r, q, vol, t);
     if !wok { fail("baw"); }
     row("Barone-Adesi/Whaley", 0.0, 0.0, baw, false, false, true);
+    let bj, jok = bjerk::npv(black::PUT, spot, strike, r, q, vol, t);
+    if !jok { fail("bjerk"); }
+    row("Bjerksund/Stensland", 0.0, 0.0, bj, false, false, true);
     let steps: i32 = 801;
     let e, b, a, ok = triple(spot, strike, r, q, vol, t, steps, stops, 0);
     if !ok { fail("jr"); }

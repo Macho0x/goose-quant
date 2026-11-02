@@ -38,7 +38,7 @@ Install the Goose compiler, then from this directory:
 goose tests/self_check.goose
 ```
 
-A good run prints `quant ok`. `tests/black_check.goose` prints `black ok`. `tests/money_check.goose` prints `money ok`. `tests/instruments_check.goose` prints `instruments ok`. `tests/sample_bonds.goose` prints the Bonds example table and `sample bonds ok`. `tests/barrier_check.goose` prints `barrier ok`. `tests/tree_check.goose` prints `tree ok`. `tests/baw_check.goose` prints `baw ok`.
+A good run prints `quant ok`. `tests/black_check.goose` prints `black ok`. `tests/money_check.goose` prints `money ok`. `tests/instruments_check.goose` prints `instruments ok`. `tests/sample_bonds.goose` prints the Bonds example table and `sample bonds ok`. `tests/barrier_check.goose` prints `barrier ok`. `tests/tree_check.goose` prints `tree ok`. `tests/baw_check.goose` prints `baw ok`. `tests/bjerk_check.goose` prints `bjerk ok`. `tests/asian_check.goose` prints `asian ok`. `tests/vasicek_check.goose` prints `vasicek ok`. `tests/integral_engine_check.goose` prints `integral engine ok`. `tests/gauss_check.goose` prints `gauss ok`. `tests/schedule_rules.goose` prints `schedule rules ok`. `tests/fitted_check.goose` prints `fitted ok`. `tests/multicurve_check.goose` prints `multicurve ok`.
 
 ## Benchmarks
 

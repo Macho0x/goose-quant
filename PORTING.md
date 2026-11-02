@@ -82,5 +82,13 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `BaroneAdesiWhaleyApproximationEngine` | `baw::npv` |
 | `BondForward` | `examples/repo.goose` |
 | indexed-coupon FRA bootstrap | `examples/fra.goose` |
+| `BjerksundStenslandApproximationEngine` | `bjerk::npv` |
+| `IntegralEngine` | `vanilla_integral::npv` |
+| `AnalyticBlackVasicekEngine` | `vasicek::npv` |
+| continuous geometric Asian | `asian::npv` |
+| order-15 Gauss-Hermite | `gauss::integrate` |
+| CDS schedule and `cdsMaturity` | `schedule::build_cds`, `schedule::cds_maturity` |
+| exponential spline fitted bond curve | `fitted::splines` |
+| Eonia plus Euribor 6M bootstrap | `multicurve::verify` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.
