@@ -65,6 +65,24 @@ fn curve_npv(pay: i32[:], amounts: f64[:], times: f64[:], discounts: f64[:], set
     return npv, true;
 }
 
+fn fit_clean(pay: i32[:], amounts: f64[:], times: f64[:], discounts: f64[:], settlement: i32, ref: i32, dc: daycount::Count, clean: f64, accrued: f64, guess: f64) -> f64, bool {
+    if discounts.len == 0 || times.len != discounts.len { return 0.0, false; }
+    let ref_d, rok = date::from_serial(ref);
+    let set_d, sok = date::from_serial(settlement);
+    if !rok || !sok { return 0.0, false; }
+    let t_set, tok = daycount::year_fraction(dc, ref_d, set_d, date::blank(), date::blank());
+    if !tok { return 0.0, false; }
+    let last = discounts.len - 1;
+    let df, ok = solver::brent(guess, 1.0e-4, 1.5, 1.0e-10, 100) {
+        discounts[last] = it;
+        let npv, nok = curve_npv(pay, amounts, times, discounts, settlement, ref, dc);
+        let df_s, dok = curve::log_linear_discount(times, discounts, t_set);
+        if nok && dok && df_s != 0.0 { npv / df_s - accrued - clean } else { 1.0 }
+    };
+    if ok { discounts[last] = df; }
+    return df, ok;
+}
+
 fn fit_discount(pay: i32[:], amounts: f64[:], times: f64[:], discounts: f64[:], settlement: i32, ref: i32, dc: daycount::Count, price: f64, guess: f64) -> f64, bool {
     if discounts.len == 0 || times.len != discounts.len { return 0.0, false; }
     let last = discounts.len - 1;
