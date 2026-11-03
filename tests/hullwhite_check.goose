@@ -22,5 +22,11 @@ fn ::main() {
         if !ok || abs(implied - bias - want[i]) >= 1.0e-7 { fail("forward"); }
         i += 1;
     }
+    let itm, iok = hullwhite::bermudan(0.8);
+    let atm, aok = hullwhite::bermudan(1.0);
+    let otm, ook = hullwhite::bermudan(1.2);
+    if !iok || abs(itm - 42.2460) >= 1.0e-4 { fail("itm"); }
+    if !aok || abs(atm - 12.9069) >= 1.0e-4 { fail("atm"); }
+    if !ook || abs(otm - 2.4985) >= 1.0e-4 { fail("otm"); }
     write_stdout("hullwhite ok\n");
 }

@@ -106,6 +106,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | Eonia plus Euribor 6M bootstrap | `multicurve::verify` |
 | `CustomIborIndex` value, fixing, and maturity dates | `index::value_date`, `index::fixing_date`, `index::maturity_date` |
 | `HullWhite::convexityBias` | `hullwhite::convexity_bias` |
+| 50-step Hull-White Bermudan swaption | `hullwhite::bermudan` |
 | `G2::discountBond` | `gauss1d::discount_bond` |
 | `CPI::laggedFixing` flat and linear | `inflation::lagged_fixing`, `inflation::linear_fixing` |
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |

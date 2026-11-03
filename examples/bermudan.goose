@@ -19,5 +19,17 @@ fn ::main() {
         write_stdout(line);
         i += 1;
     }
+    let itm, iok = hullwhite::bermudan(0.8);
+    let atm, aok = hullwhite::bermudan(1.0);
+    let otm, ook = hullwhite::bermudan(1.2);
+    if !iok || !aok || !ook { exit(1); }
+    var price: u8[>..] = [];
+    format_flt(price, itm, 6);
+    format(price, "\n");
+    format_flt(price, atm, 6);
+    format(price, "\n");
+    format_flt(price, otm, 6);
+    format(price, "\n");
+    write_stdout(price);
     write_stdout("bermudan ok\n");
 }
