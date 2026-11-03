@@ -34,6 +34,11 @@ fn ::main() {
     if !ok || !cok || !dok { fail("spread zero"); }
     if gap(px, df * redemption + ratio * call) > 1.0e-9 { fail("spread zero"); }
 
+    // testOption tolerance is 5.0e-2 * (faceAmount/100). Face is 100.
+    // 801 steps is ConvertibleBonds.cpp. Zero coupon, no dividends, spread 0.
+    let bin, tok = convertible::crr(spot, redemption, ratio, r, q, vol, t, 0.0, 801);
+    if !tok || gap(bin, px) > 5.0e-2 { fail("binomial"); }
+
     // No conversion: only the risky redemption remains.
     let buried, bok = convertible::npv(1.0, redemption, ratio, r, q, vol, t, spread);
     let risky, rok = rate::discount_factor(r + spread, rate::CONTINUOUS, 0, t);

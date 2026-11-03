@@ -113,6 +113,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | Hull-White callable, puttable, and callable-puttable tree clean prices | `callable::tree_clean`, `callable::tree_put`, `callable::tree_both` |
 | one-step lognormal caplet | `lmm::caplet` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
+| 801-step CRR zero-coupon convertible | `convertible::crr` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
 | one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 | Gaussian large-homogeneous-pool tranche loss | `basket::expected_tranche_loss` |
