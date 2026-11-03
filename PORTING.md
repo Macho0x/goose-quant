@@ -112,5 +112,6 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | one-step lognormal caplet | `lmm::caplet` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
+| one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.
