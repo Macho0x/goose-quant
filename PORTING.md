@@ -93,6 +93,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | order-15 Gauss-Hermite | `gauss::integrate` |
 | CDS schedule and `cdsMaturity` | `schedule::build_cds`, `schedule::cds_maturity` |
 | Twentieth and ThirdWednesday schedules | `schedule::build_twentieth`, `schedule::third_wednesday` |
+| CDS hazard bootstrap | `credit::calibrate` |
 | exponential spline fitted bond curve | `fitted::splines` |
 | Eonia plus Euribor 6M bootstrap | `multicurve::verify` |
 
