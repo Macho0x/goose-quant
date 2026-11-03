@@ -30,5 +30,13 @@ fn ::main() {
     let displacement = 0.0;
     let px, ok = lmm::caplet(forward, strike, vol, expiry, discount, accrual, displacement);
     if !ok || gap(px, 0.0006151942533796) > 1.0e-12 { fail("caplet"); }
+    // testOneStepForwardsAndOptionlets strikes the forward at the rate plus 0.01.
+    // Seed 42, 32767 paths. The check allows 4 standard errors.
+    let forward_strike = forward + 0.01;
+    let mean_fwd, err_fwd, mean_call, err_call, pok = lmm::one_step(forward, forward_strike, vol, expiry, discount, accrual, displacement, 42, 32767);
+    if !pok { fail("paths"); }
+    let closed = (forward - forward_strike) * accrual * discount;
+    if gap(mean_fwd, closed) > 4.0 * err_fwd { fail("forward"); }
+    if gap(mean_call, px) > 4.0 * err_call { fail("optionlet"); }
     write_stdout("lmm ok\n");
 }

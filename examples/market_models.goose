@@ -25,5 +25,19 @@ fn ::main() {
     var d = px - 0.0006151942533796;
     if d < 0.0 { d = -d; }
     if d > 1.0e-12 { fail("caplet"); }
+    let forward_strike = forward + 0.01;
+    let mean_fwd, err_fwd, mean_call, err_call, pok = lmm::one_step(forward, forward_strike, vol, expiry, discount, accrual, 0.0, 42, 32767);
+    if !pok { fail("paths"); }
+    line.clear();
+    format(line, mean_call);
+    format(line, "\n");
+    write_stdout(line);
+    let closed = (forward - forward_strike) * accrual * discount;
+    var df = mean_fwd - closed;
+    if df < 0.0 { df = -df; }
+    if df > 4.0 * err_fwd { fail("forward"); }
+    var dc = mean_call - px;
+    if dc < 0.0 { dc = -dc; }
+    if dc > 4.0 * err_call { fail("optionlet"); }
     write_stdout("market models ok\n");
 }

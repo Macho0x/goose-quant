@@ -111,7 +111,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `CPI::laggedFixing` flat and linear | `inflation::lagged_fixing`, `inflation::linear_fixing` |
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |
 | Hull-White callable, puttable, and callable-puttable tree clean prices | `callable::tree_clean`, `callable::tree_put`, `callable::tree_both` |
-| one-step lognormal caplet | `lmm::caplet` |
+| one-step lognormal caplet and its Monte Carlo mean | `lmm::caplet`, `lmm::one_step` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | 801-step CRR zero-coupon convertible | `convertible::crr` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
