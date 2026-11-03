@@ -158,6 +158,35 @@ fn forward_annuity(spot: date::Date, fixed: i32[:], n_fixed: i64, floating: i32[
     return fwd, NOTIONAL * level, true;
 }
 
+fn annuity(years: i32) -> f64, bool {
+    let today, tok = asof();
+    if !tok { return 0.0, false; }
+    let spot, sok = spot_date(today);
+    if !sok { return 0.0, false; }
+    var times: f64[8] = [0.0; 8];
+    var dfs: f64[8] = [0.0; 8];
+    let nodes, nok = market(spot, times, dfs);
+    if !nok { return 0.0, false; }
+    let maturity, mok = date::plus_years(spot, years);
+    if !mok { return 0.0, false; }
+    var dates: i32[160] = [0; 160];
+    let n, dok = dated(spot, maturity, 3, dates);
+    if !dok { return 0.0, false; }
+    let rate, ann, rok = forward_annuity(spot, dates, n, dates, n, times[0..nodes], dfs[0..nodes], daycount::actual_actual_isda());
+    if !rok || ann <= 0.0 || rate == 0.0 { return 0.0, false; }
+    return ann, true;
+}
+
+// Payer fair-rate correction in basis points. The fixed leg NPV is
+// negative, so CounterpartyAdjSwapEngine's fair rate sits below the
+// risk-free par rate by CVA / annuity.
+fn correction(years: i32, hazard: f64[:], recovery: f64) -> f64, bool {
+    let cva, cok = amount(years, hazard, recovery);
+    let ann, aok = annuity(years);
+    if !cok || !aok || ann == 0.0 { return 0.0, false; }
+    return -10000.0 * cva / ann, true;
+}
+
 fn fair(years: i32) -> f64, bool {
     let today, tok = asof();
     if !tok { return 0.0, false; }

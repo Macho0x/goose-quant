@@ -49,5 +49,14 @@ fn ::main() {
     }
     if got != sum { fail("sum"); }
     if !(got > 0.0) { fail("payer"); }
+
+    let ann, aok = cva::annuity(5);
+    let bp, bpok = cva::correction(5, flat, cva::RECOVERY_LOW);
+    if !aok || !bpok || ann <= 0.0 { fail("annuity"); }
+    if gap(bp, -10000.0 * got / ann) > 1.0e-9 { fail("basis points"); }
+    let zero_bp, zbok = cva::correction(5, zero_h, cva::RECOVERY_LOW);
+    if !zbok || zero_bp != 0.0 { fail("zero basis points"); }
+    let printed, pok2 = cva::correction(5, cva::LOW, cva::RECOVERY_LOW);
+    if !pok2 || !(printed < 0.0) { fail("payer correction"); }
     write_stdout("cva ok\n");
 }

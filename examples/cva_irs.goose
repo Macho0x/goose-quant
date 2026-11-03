@@ -25,9 +25,9 @@ fn ::main() {
     var i: i64 = 0;
     while i < 6 {
         let years = cva::TENOR[i];
-        let low, lok = cva::amount(years, cva::LOW, cva::RECOVERY_LOW);
-        let med, mok = cva::amount(years, cva::MEDIUM, cva::RECOVERY_MEDIUM);
-        let high, hok = cva::amount(years, cva::HIGH, cva::RECOVERY_HIGH);
+        let low, lok = cva::correction(years, cva::LOW, cva::RECOVERY_LOW);
+        let med, mok = cva::correction(years, cva::MEDIUM, cva::RECOVERY_MEDIUM);
+        let high, hok = cva::correction(years, cva::HIGH, cva::RECOVERY_HIGH);
         if !lok || !mok || !hok { fail("cva"); }
         show(years, low, med, high);
         i += 1;

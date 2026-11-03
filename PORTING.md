@@ -107,13 +107,13 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `CustomIborIndex` value, fixing, and maturity dates | `index::value_date`, `index::fixing_date`, `index::maturity_date` |
 | `HullWhite::convexityBias` | `hullwhite::convexity_bias` |
 | `G2::discountBond` | `gauss1d::discount_bond` |
-| `CPI::laggedFixing` flat | `inflation::lagged_fixing` |
+| `CPI::laggedFixing` flat and linear | `inflation::lagged_fixing`, `inflation::linear_fixing` |
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |
 | one-step lognormal caplet | `lmm::caplet` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
 | one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 | Gaussian large-homogeneous-pool tranche loss | `basket::expected_tranche_loss` |
-| payer swap CVA from Black swaptionlets | `cva::amount` |
+| payer swap CVA and the basis-point fair-rate correction | `cva::amount`, `cva::correction` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.
