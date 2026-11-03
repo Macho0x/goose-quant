@@ -59,3 +59,16 @@ fn simple_pillars(times: f64[:], rates: f64[:], discounts: f64[:]) -> bool {
     }
     return true;
 }
+
+fn implied_discount(r: f64, compounding: i32, freq: i32, t_base: f64, t: f64) -> f64, bool {
+    let base, bok = flat_discount(r, compounding, freq, t_base);
+    let full, fok = flat_discount(r, compounding, freq, t);
+    if !bok || !fok || base == 0.0 { return 0.0, false; }
+    return full / base, true;
+}
+
+fn zero_spreaded_discount(r: f64, spread: f64, t: f64) -> f64, bool {
+    let df, ok = flat_discount(r, rate::CONTINUOUS, 0, t);
+    if !ok { return 0.0, false; }
+    return df * exp(-spread * t), true;
+}

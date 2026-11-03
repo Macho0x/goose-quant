@@ -7,6 +7,8 @@ import quant.european;
 import quant.tree;
 import quant.baw;
 import quant.bjerk;
+import quant.vasicek;
+import quant.vanilla_integral;
 
 fn fail(msg: u8[:]) {
     write_stdout(msg);
@@ -59,6 +61,12 @@ fn ::main() {
     if !bok { fail("black"); }
     write_stdout("Method                             European        Bermudan        American\n");
     row("Black-Scholes", bs, 0.0, 0.0, true, false, false);
+    let vas, vok = vasicek::npv(black::PUT, spot, strike, r, q, vol, t, 0.3, 0.3, 0.15, 0.0, 0.5);
+    if !vok { fail("vasicek"); }
+    row("Black Vasicek Model", vas, 0.0, 0.0, true, false, false);
+    let integ, iok = vanilla_integral::npv(black::PUT, spot, strike, r, q, vol, t);
+    if !iok { fail("integral"); }
+    row("Integral", integ, 0.0, 0.0, true, false, false);
     let baw, wok = baw::npv(black::PUT, spot, strike, r, q, vol, t);
     if !wok { fail("baw"); }
     row("Barone-Adesi/Whaley", 0.0, 0.0, baw, false, false, true);

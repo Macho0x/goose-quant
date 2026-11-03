@@ -73,6 +73,8 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `Brent` / `Newton` | `solver::brent`, `solver::newton` |
 | `blackFormulaImpliedStdDev` | `black::implied_std` |
 | `CashFlows::npv` | `cash::yield_npv`, `cash::curve_npv` |
+| `CashFlows::duration` simple | `cashflow::simple_duration` |
+| implied and zero-spreaded discounts | `curve::implied_discount`, `curve::zero_spreaded_discount` |
 | last pillar on a log-linear discount curve | `cash::fit_discount`, `cash::fit_clean`, `cash::fit_par` |
 | `ForwardRateAgreement` amount | `cash::fra_amount` |
 | par swap rate | `cash::par_rate` |
