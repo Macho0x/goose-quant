@@ -108,5 +108,6 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `HullWhite::convexityBias` | `hullwhite::convexity_bias` |
 | `G2::discountBond` | `gauss1d::discount_bond` |
 | `CPI::laggedFixing` flat | `inflation::lagged_fixing` |
+| `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.
