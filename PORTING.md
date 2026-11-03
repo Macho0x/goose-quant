@@ -104,5 +104,6 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | CDS hazard bootstrap | `credit::calibrate` |
 | exponential spline fitted bond curve | `fitted::splines` |
 | Eonia plus Euribor 6M bootstrap | `multicurve::verify` |
+| `CustomIborIndex` value, fixing, and maturity dates | `index::value_date`, `index::fixing_date`, `index::maturity_date` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.
