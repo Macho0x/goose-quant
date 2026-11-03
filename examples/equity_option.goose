@@ -9,6 +9,7 @@ import quant.baw;
 import quant.bjerk;
 import quant.vasicek;
 import quant.vanilla_integral;
+import quant.fd;
 
 fn fail(msg: u8[:]) {
     write_stdout(msg);
@@ -73,6 +74,11 @@ fn ::main() {
     let bj, jok = bjerk::npv(black::PUT, spot, strike, r, q, vol, t);
     if !jok { fail("bjerk"); }
     row("Bjerksund/Stensland", 0.0, 0.0, bj, false, false, true);
+    let fde, fdok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::EUROPEAN, stops);
+    let fdb, fdbok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::BERMUDAN, stops);
+    let fda, fdaok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::AMERICAN, stops);
+    if !fdok || !fdbok || !fdaok { fail("fd"); }
+    row("Finite differences", fde, fdb, fda, true, true, true);
     let steps: i32 = 801;
     let e, b, a, ok = triple(spot, strike, r, q, vol, t, steps, stops, 0);
     if !ok { fail("jr"); }

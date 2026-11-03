@@ -86,6 +86,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | indexed-coupon FRA bootstrap | `examples/fra.goose` |
 | `BjerksundStenslandApproximationEngine` | `bjerk::npv` |
 | `IntegralEngine` | `vanilla_integral::npv` |
+| `FdBlackScholesVanillaEngine` | `fd::npv` |
 | `AnalyticBlackVasicekEngine` | `vasicek::npv` |
 | continuous geometric Asian | `asian::npv` |
 | order-15 Gauss-Hermite | `gauss::integrate` |
