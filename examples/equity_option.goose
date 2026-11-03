@@ -89,6 +89,12 @@ fn ::main() {
     let qd_fast, qdok = qd::npv_fast(spot, strike, r, q, vol, t);
     if !qdok { fail("qd"); }
     row("QD+ fixed-point (fast)", 0.0, 0.0, qd_fast, false, false, true);
+    let qd_acc, qdack = qd::npv_accurate(spot, strike, r, q, vol, t);
+    if !qdack { fail("qd accurate"); }
+    row("QD+ fixed-point (accurate)", 0.0, 0.0, qd_acc, false, false, true);
+    let qd_hi, qdhok = qd::npv_high(spot, strike, r, q, vol, t);
+    if !qdhok { fail("qd high"); }
+    row("QD+ fixed-point (high precision)", 0.0, 0.0, qd_hi, false, false, true);
     let fde, fdok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::EUROPEAN, stops);
     let fdb, fdbok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::BERMUDAN, stops);
     let fda, fdaok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::AMERICAN, stops);

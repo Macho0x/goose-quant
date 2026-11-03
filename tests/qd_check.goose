@@ -46,10 +46,36 @@ fn ::main() {
     if gap(euro, 3.8443077915968398) > 1.0e-12 { fail("euro ref"); }
     let px, pok = qd::npv_fast(36.0, 40.0, 0.06, 0.0, 0.20, 1.0);
     if !pok || is_nan(px) || is_inf(px) || px < euro { fail("fast"); }
+    let acc, aok = qd::npv_accurate(36.0, 40.0, 0.06, 0.0, 0.20, 1.0);
+    if !aok || is_nan(acc) || is_inf(acc) || acc < euro || gap(acc, px) > 0.05 {
+        var bad: u8[>..] = [];
+        format(bad, "accurate ");
+        format(bad, acc);
+        format(bad, " fast ");
+        format(bad, px);
+        format(bad, " ok ");
+        format(bad, aok);
+        fail(bad);
+    }
+    let hi, hok = qd::npv_high(36.0, 40.0, 0.06, 0.0, 0.20, 1.0);
+    if !hok || is_nan(hi) || is_inf(hi) || hi < euro || gap(hi, px) > 0.05 {
+        var bad: u8[>..] = [];
+        format(bad, "high ");
+        format(bad, hi);
+        format(bad, " fast ");
+        format(bad, px);
+        format(bad, " ok ");
+        format(bad, hok);
+        fail(bad);
+    }
 
     var line: u8[>..] = [];
     format(line, "qd ok ");
     format(line, px);
+    format(line, " ");
+    format(line, acc);
+    format(line, " ");
+    format(line, hi);
     format(line, "\n");
     write_stdout(line);
 }

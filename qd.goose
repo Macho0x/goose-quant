@@ -1,6 +1,7 @@
-// QD+ fixed-point American put. QuantLib's QdFpAmericanEngine fast scheme
-// is QdFpLegendreScheme(7, 2, 7, 27): one Jacobi-Newton step, one naive
-// step, seven Chebyshev nodes, Gauss-Legendre 7 and 27.
+// QD+ fixed-point American put. QuantLib's QdFpAmericanEngine:
+// fast is QdFpLegendreScheme(7, 2, 7, 27),
+// accurate is QdFpLegendreTanhSinhScheme(25, 5, 13, 1e-8),
+// high precision is QdFpTanhSinhIterationScheme(10, 30, 1e-10).
 // The exercise root is the QD+ Halley iteration in qdplusamericanengine.cpp.
 
 import math;
@@ -451,7 +452,135 @@ fn tiny_fv(tau: f64, b: f64, strike: f64, r: f64, q: f64, above_is_alpha: bool) 
     return alpha * r / q, true;
 }
 
-fn eq_b(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, qx: f64[:], qw: f64[:], order: i64) -> f64, f64, f64, bool {
+fn ts_sinh(t: f64) -> f64 {
+    let e = exp(t);
+    return 0.5 * (e - 1.0 / e);
+}
+
+fn ts_cosh(t: f64) -> f64 {
+    let e = exp(t);
+    return 0.5 * (e + 1.0 / e);
+}
+
+fn ts_pair(t: f64) -> f64, f64 {
+    if t == 0.0 { return 0.0, 0.5 * PI; }
+    let u = 0.5 * PI * ts_sinh(t);
+    var w = 0.0;
+    var x = 0.0;
+    if u < 1.0 {
+        let cs = ts_cosh(u);
+        w = 0.5 * PI * ts_cosh(t) / (cs * cs);
+        let e = exp(2.0 * u);
+        x = (e - 1.0) / (e + 1.0);
+    } else {
+        let e2 = exp(-2.0 * u);
+        let den = (1.0 + e2) * (1.0 + e2);
+        w = 0.5 * PI * ts_cosh(t) * 4.0 * e2 / den;
+        x = 1.0 - 2.0 * e2 / (1.0 + e2);
+    }
+    if x > 1.0 - 4.0 * EPS { x = 1.0 - 4.0 * EPS; }
+    if x < 0.0 { x = 0.0; }
+    return x, w;
+}
+
+// ponytail: abscissae stop at t=3.6 and 8 halvings, so a 1/sqrt endpoint stalls near 1e-8. Complement nodes out to t=6 and 15 refinements if that tail is the error.
+fn tanh_sinh<F>(a: f64, b: f64, tol: f64) -> f64, bool {
+    if !(b > a) || !finite(a) || !finite(b) || !(tol > 0.0) { return 0.0, false; }
+    let half = 0.5 * (b - a);
+    let mid = 0.5 * (a + b);
+    var h = 1.0;
+    var estimate = 0.0;
+    var l1 = 0.0;
+    var level: i64 = 0;
+    var prev = 0.0;
+    while level < 8 {
+        var acc = 0.0;
+        var ab = 0.0;
+        var k: i64 = 0;
+        var step: i64 = 1;
+        if level > 0 {
+            k = 1;
+            step = 2;
+        }
+        while true {
+            let t = (k as f64) * h;
+            if t > 3.6 { break; }
+            let x, w = ts_pair(t);
+            if !finite(x) || !finite(w) { return 0.0, false; }
+            let right = F(mid + half * x);
+            if !finite(right) { return 0.0, false; }
+            if k == 0 {
+                acc += right * w;
+                ab += abs(right * w);
+            } else {
+                let left = F(mid - half * x);
+                if !finite(left) { return 0.0, false; }
+                acc += (right + left) * w;
+                ab += (abs(right) + abs(left)) * w;
+            }
+            if w < 1.0e-18 && t > 0.0 { break; }
+            k += step;
+        }
+        if level == 0 {
+            estimate = acc * h;
+            l1 = ab * h;
+        } else {
+            estimate = 0.5 * estimate + acc * h;
+            l1 = 0.5 * l1 + ab * h;
+        }
+        if level >= 4 {
+            let err = abs(estimate - prev);
+            if err <= tol * l1 {
+                let value = estimate * half;
+                if !finite(value) { return 0.0, false; }
+                return value, true;
+            }
+        }
+        prev = estimate;
+        h *= 0.5;
+        level += 1;
+    }
+    let value = estimate * half;
+    if !finite(value) { return 0.0, false; }
+    return value, true;
+}
+
+fn b_node(u: f64, tau: f64, b: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, want_dm: bool) -> f64, bool {
+    var rate = q;
+    if want_dm { rate = r; }
+    let df = exp(rate * u);
+    let b_u = exercise_at(u, t_mat, xm, z, y, lam, points);
+    if u >= tau * (1.0 - 5.0 * EPS) {
+        if close_enough(b, b_u) { return 0.5 * df, true; }
+        if b < b_u { return 0.0, true; }
+        return df, true;
+    }
+    if !(b_u > 0.0) { return 0.0, false; }
+    let dp, dm, ok = d_pm(vol, r, q, tau - u, b / b_u);
+    if !ok { return 0.0, false; }
+    if want_dm { return df * normal::cdf(dm), true; }
+    return df * normal::cdf(dp), true;
+}
+
+fn a_node(y: f64, tau: f64, b: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], nodes: f64[:], lam: f64[:], points: i64, want_k3: bool) -> f64, bool {
+    let m = 0.25 * tau * (1.0 + y) * (1.0 + y);
+    var rate = q;
+    if want_k3 { rate = r; }
+    let df = exp(rate * tau - rate * m);
+    let stv = sqrt(tau) / vol;
+    let b_m = exercise_at(tau - m, t_mat, xm, z, nodes, lam, points);
+    if y <= 5.0 * EPS - 1.0 {
+        if close_enough(b, b_m) { return df * stv * normal::pdf(0.0), true; }
+        return 0.0, true;
+    }
+    if !(b_m > 0.0) { return 0.0, false; }
+    let dp, dm, ok = d_pm(vol, r, q, m, b / b_m);
+    if !ok { return 0.0, false; }
+    if want_k3 { return df * stv * normal::pdf(dm), true; }
+    return df * (0.5 * tau * (y + 1.0) * normal::cdf(dp) + stv * normal::pdf(dp)), true;
+}
+
+fn eq_b(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, qx: f64[:], qw: f64[:], order: i64, tol: f64) -> f64, f64, f64, bool {
     let tiny = tau < EPS * EPS;
     var n_val = 0.0;
     var d_val = 0.0;
@@ -472,20 +601,37 @@ fn eq_b(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm:
     let c = 0.5 * tau;
     var ni = 0.0;
     var di = 0.0;
-    var i: i64 = 0;
-    while i < order {
-        let u = c * qx[i] + c;
-        let left = tau - u;
-        let b_u = exercise_at(u, t_mat, xm, z, y, lam, points);
-        if !(b_u > 0.0) { return 0.0, 0.0, 0.0, false; }
-        let dp, dm, ok = d_pm(vol, r, q, left, b / b_u);
-        if !ok { return 0.0, 0.0, 0.0, false; }
-        ni += qw[i] * exp(r * u) * normal::cdf(dm);
-        di += qw[i] * exp(q * u) * normal::cdf(dp);
-        i += 1;
+    if tol > 0.0 {
+        var bad = false;
+        let raw_n, nok = tanh_sinh(0.0, tau, tol) {
+            let v, vok = b_node(it, tau, b, r, q, vol, t_mat, xm, z, y, lam, points, true);
+            if !vok { bad = true; }
+            if vok { v } else { 0.0 }
+        };
+        let raw_d, dok = tanh_sinh(0.0, tau, tol) {
+            let v, vok = b_node(it, tau, b, r, q, vol, t_mat, xm, z, y, lam, points, false);
+            if !vok { bad = true; }
+            if vok { v } else { 0.0 }
+        };
+        if !nok || !dok || bad { return 0.0, 0.0, 0.0, false; }
+        ni = raw_n;
+        di = raw_d;
+    } else {
+        var i: i64 = 0;
+        while i < order {
+            let u = c * qx[i] + c;
+            let left = tau - u;
+            let b_u = exercise_at(u, t_mat, xm, z, y, lam, points);
+            if !(b_u > 0.0) { return 0.0, 0.0, 0.0, false; }
+            let dp, dm, ok = d_pm(vol, r, q, left, b / b_u);
+            if !ok { return 0.0, 0.0, 0.0, false; }
+            ni += qw[i] * exp(r * u) * normal::cdf(dm);
+            di += qw[i] * exp(q * u) * normal::cdf(dp);
+            i += 1;
+        }
+        ni *= c;
+        di *= c;
     }
-    ni *= c;
-    di *= c;
     let dp, dm, ok = d_pm(vol, r, q, tau, b / strike);
     if !ok { return 0.0, 0.0, 0.0, false; }
     n_val = normal::cdf(dm) + r * ni;
@@ -506,7 +652,7 @@ fn ndd_b(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64) -> f64, f64, b
     return nd, dd, finite(nd) && finite(dd);
 }
 
-fn eq_a(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, qx: f64[:], qw: f64[:], order: i64) -> f64, f64, f64, bool {
+fn eq_a(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, qx: f64[:], qw: f64[:], order: i64, tol: f64) -> f64, f64, f64, bool {
     let tiny = tau < EPS * EPS;
     if tiny {
         var n_val = 0.0;
@@ -526,19 +672,36 @@ fn eq_a(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm:
     let stv = sqrt(tau) / vol;
     var k12 = 0.0;
     var k3 = 0.0;
-    var i: i64 = 0;
-    while i < order {
-        let node = qx[i];
-        let m = 0.25 * tau * (1.0 + node) * (1.0 + node);
-        let b_m = exercise_at(tau - m, t_mat, xm, z, y, lam, points);
-        if !(b_m > 0.0) { return 0.0, 0.0, 0.0, false; }
-        let dp, dm, ok = d_pm(vol, r, q, m, b / b_m);
-        if !ok { return 0.0, 0.0, 0.0, false; }
-        let df_q = exp(q * tau - q * m);
-        let df_r = exp(r * tau - r * m);
-        k12 += qw[i] * df_q * (0.5 * tau * (node + 1.0) * normal::cdf(dp) + stv * normal::pdf(dp));
-        k3 += qw[i] * stv * df_r * normal::pdf(dm);
-        i += 1;
+    if tol > 0.0 {
+        var bad = false;
+        let i12, ok12 = tanh_sinh(-1.0, 1.0, tol) {
+            let v, vok = a_node(it, tau, b, r, q, vol, t_mat, xm, z, y, lam, points, false);
+            if !vok { bad = true; }
+            if vok { v } else { 0.0 }
+        };
+        let i3, ok3 = tanh_sinh(-1.0, 1.0, tol) {
+            let v, vok = a_node(it, tau, b, r, q, vol, t_mat, xm, z, y, lam, points, true);
+            if !vok { bad = true; }
+            if vok { v } else { 0.0 }
+        };
+        if !ok12 || !ok3 || bad { return 0.0, 0.0, 0.0, false; }
+        k12 = i12;
+        k3 = i3;
+    } else {
+        var i: i64 = 0;
+        while i < order {
+            let node = qx[i];
+            let m = 0.25 * tau * (1.0 + node) * (1.0 + node);
+            let b_m = exercise_at(tau - m, t_mat, xm, z, y, lam, points);
+            if !(b_m > 0.0) { return 0.0, 0.0, 0.0, false; }
+            let dp, dm, ok = d_pm(vol, r, q, m, b / b_m);
+            if !ok { return 0.0, 0.0, 0.0, false; }
+            let df_q = exp(q * tau - q * m);
+            let df_r = exp(r * tau - r * m);
+            k12 += qw[i] * df_q * (0.5 * tau * (node + 1.0) * normal::cdf(dp) + stv * normal::pdf(dp));
+            k3 += qw[i] * stv * df_r * normal::pdf(dm);
+            i += 1;
+        }
     }
     let dp, dm, ok = d_pm(vol, r, q, tau, b / strike);
     if !ok || !(vv > 0.0) { return 0.0, 0.0, 0.0, false; }
@@ -571,11 +734,11 @@ fn ndd_a(tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64) -> f64, f64, b
     return nd, dd, finite(nd) && finite(dd);
 }
 
-fn eq_at(use_a: bool, tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, qx: f64[:], qw: f64[:], order: i64) -> f64, f64, f64, bool {
+fn eq_at(use_a: bool, tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64, t_mat: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64, qx: f64[:], qw: f64[:], order: i64, tol: f64) -> f64, f64, f64, bool {
     if use_a {
-        return eq_a(tau, b, strike, r, q, vol, t_mat, xm, z, y, lam, points, qx, qw, order);
+        return eq_a(tau, b, strike, r, q, vol, t_mat, xm, z, y, lam, points, qx, qw, order, tol);
     }
-    return eq_b(tau, b, strike, r, q, vol, t_mat, xm, z, y, lam, points, qx, qw, order);
+    return eq_b(tau, b, strike, r, q, vol, t_mat, xm, z, y, lam, points, qx, qw, order, tol);
 }
 
 fn ndd_at(use_a: bool, tau: f64, b: f64, strike: f64, r: f64, q: f64, vol: f64) -> f64, f64, bool {
@@ -622,7 +785,33 @@ fn zero_vol(spot: f64, strike: f64, r: f64, q: f64, t: f64) -> f64, bool {
     return put_floor(best, spot, strike), true;
 }
 
-fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64, m: i64, n: i64, p: i64) -> f64, bool {
+fn addon_at(zz: f64, spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, xm: f64, z: f64[:], y: f64[:], lam: f64[:], points: i64) -> f64, bool {
+    let t_i = zz * zz;
+    var remain = t - t_i;
+    if remain < 0.0 { remain = 0.0; }
+    let arg = 2.0 * sqrt(remain / t) - 1.0;
+    var qv = lagrange(z, y, lam, points, arg);
+    if qv < 0.0 { qv = 0.0; }
+    let b_t = xm * exp(-sqrt(qv));
+    let dr = exp(-r * t_i);
+    let dq = exp(-q * t_i);
+    let vv = vol * sqrt(t_i);
+    var piece = 0.0;
+    if vv >= EPS {
+        if b_t > EPS {
+            let dp = log(spot * dq / (b_t * dr)) / vv + 0.5 * vv;
+            piece = 2.0 * zz * (r * strike * dr * normal::cdf(-dp + vv) - q * spot * dq * normal::cdf(-dp));
+        }
+    } else if close_enough(spot * dq, b_t * dr) {
+        piece = zz * (r * strike * dr - q * spot * dq);
+    } else if b_t * dr > spot * dq {
+        piece = 2.0 * zz * (r * strike * dr - q * spot * dq);
+    }
+    if !finite(piece) { return 0.0, false; }
+    return piece, true;
+}
+
+fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64, m: i64, n: i64, p: i64, fp_tol: f64, price_tol: f64) -> f64, bool {
     if strike < 0.0 || spot < 0.0 || vol < 0.0 || t < 0.0 { return 0.0, false; }
     if t == 0.0 { return put_floor(0.0, spot, strike), true; }
     if close(strike, 0.0) { return put_floor(0.0, spot, strike), true; }
@@ -640,9 +829,11 @@ fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64
     }
     if close(vol, 0.0) { return zero_vol(spot, strike, r, q, t); }
     if r < 0.0 && q < r { return 0.0, false; }
-    if l < 1 || p < 1 || m < 1 || n < 1 { return 0.0, false; }
+    if m < 1 || n < 1 || fp_tol < 0.0 || price_tol < 0.0 { return 0.0, false; }
+    if fp_tol == 0.0 && (l < 1 || l > MAX) { return 0.0, false; }
+    if price_tol == 0.0 && (p < 1 || p > MAX) { return 0.0, false; }
     let points = n + 1;
-    if points > MAX || l > MAX || p > MAX { return 0.0, false; }
+    if points > MAX { return 0.0, false; }
 
     let xm, xok = xmax_of(strike, r, q);
     if !xok || !(xm > 0.0) { return 0.0, false; }
@@ -655,7 +846,8 @@ fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64
     var qw: f64[64] = [0.0; 64];
     var px: f64[64] = [0.0; 64];
     var pw: f64[64] = [0.0; 64];
-    if !legendre(l, qx, qw) || !legendre(p, px, pw) { return 0.0, false; }
+    if fp_tol == 0.0 && !legendre(l, qx, qw) { return 0.0, false; }
+    if price_tol == 0.0 && !legendre(p, px, pw) { return 0.0, false; }
     chebyshev(z, points);
     if !barycentric(z, lam, points) { return 0.0, false; }
 
@@ -679,7 +871,7 @@ fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64
             let xt = 0.5 * sqrt(t) * (1.0 + z[i]);
             let tau = xt * xt;
             let b = exercise_at(tau, t, xm, z, y, lam, points);
-            let n_val, d_val, fv, fok = eq_at(use_a, tau, b, strike, r, q, vol, t, xm, z, y, lam, points, qx, qw, l);
+            let n_val, d_val, fv, fok = eq_at(use_a, tau, b, strike, r, q, vol, t, xm, z, y, lam, points, qx, qw, l, fp_tol);
             if !fok { return 0.0, false; }
             var nxt = fv;
             if newton && !(tau < EPS) {
@@ -703,37 +895,28 @@ fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64
     }
 
     let upper = sqrt(t);
-    let c1 = 0.5 * upper;
     var addon = 0.0;
-    i = 0;
-    while i < p {
-        let zz = c1 * px[i] + c1;
-        let t_i = zz * zz;
-        var remain = t - t_i;
-        if remain < 0.0 { remain = 0.0; }
-        let arg = 2.0 * sqrt(remain / t) - 1.0;
-        var qv = lagrange(z, y, lam, points, arg);
-        if qv < 0.0 { qv = 0.0; }
-        let b_t = xm * exp(-sqrt(qv));
-        let dr = exp(-r * t_i);
-        let dq = exp(-q * t_i);
-        let vv = vol * sqrt(t_i);
-        var piece = 0.0;
-        if vv >= EPS {
-            if b_t > EPS {
-                let dp = log(spot * dq / (b_t * dr)) / vv + 0.5 * vv;
-                piece = 2.0 * zz * (r * strike * dr * normal::cdf(-dp + vv) - q * spot * dq * normal::cdf(-dp));
-            }
-        } else if close_enough(spot * dq, b_t * dr) {
-            piece = zz * (r * strike * dr - q * spot * dq);
-        } else if b_t * dr > spot * dq {
-            piece = 2.0 * zz * (r * strike * dr - q * spot * dq);
+    if price_tol > 0.0 {
+        var bad = false;
+        let raw, rok = tanh_sinh(0.0, upper, price_tol) {
+            let piece, pok = addon_at(it, spot, strike, r, q, vol, t, xm, z, y, lam, points);
+            if !pok { bad = true; }
+            if pok { piece } else { 0.0 }
+        };
+        if !rok || bad { return 0.0, false; }
+        addon = raw;
+    } else {
+        let c1 = 0.5 * upper;
+        i = 0;
+        while i < p {
+            let zz = c1 * px[i] + c1;
+            let piece, pok = addon_at(zz, spot, strike, r, q, vol, t, xm, z, y, lam, points);
+            if !pok { return 0.0, false; }
+            addon += pw[i] * piece;
+            i += 1;
         }
-        if !finite(piece) { return 0.0, false; }
-        addon += pw[i] * piece;
-        i += 1;
+        addon *= c1;
     }
-    addon *= c1;
     if !finite(addon) || addon < -1.0e-8 { return 0.0, false; }
     if addon < 0.0 { addon = 0.0; }
 
@@ -748,5 +931,13 @@ fn npv_legendre(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64, l: i64
 }
 
 fn npv_fast(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64) -> f64, bool {
-    return npv_legendre(spot, strike, r, q, vol, t, 7, 2, 7, 27);
+    return npv_legendre(spot, strike, r, q, vol, t, 7, 2, 7, 27, 0.0, 0.0);
+}
+
+fn npv_accurate(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64) -> f64, bool {
+    return npv_legendre(spot, strike, r, q, vol, t, 25, 5, 13, 0, 0.0, 1.0e-8);
+}
+
+fn npv_high(spot: f64, strike: f64, r: f64, q: f64, vol: f64, t: f64) -> f64, bool {
+    return npv_legendre(spot, strike, r, q, vol, t, 0, 10, 30, 0, 1.0e-10, 1.0e-10);
 }
