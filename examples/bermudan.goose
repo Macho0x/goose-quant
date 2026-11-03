@@ -1,6 +1,7 @@
 import os;
 import quant from "..";
 import quant.hullwhite;
+import quant.g2tree;
 
 fn ::main() {
     let quote = 94.0;
@@ -31,5 +32,16 @@ fn ::main() {
     format_flt(price, otm, 6);
     format(price, "\n");
     write_stdout(price);
+    var strike: f64[5] = [0.5, 0.75, 1.0, 1.25, 1.5];
+    var g2: u8[>..] = [];
+    var s = 0;
+    while s < strike.len {
+        let px, pok = g2tree::price(strike[s]);
+        if !pok { exit(1); }
+        format_flt(g2, px, 5);
+        format(g2, "\n");
+        s += 1;
+    }
+    write_stdout(g2);
     write_stdout("bermudan ok\n");
 }

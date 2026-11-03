@@ -107,6 +107,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `CustomIborIndex` value, fixing, and maturity dates | `index::value_date`, `index::fixing_date`, `index::maturity_date` |
 | `HullWhite::convexityBias` | `hullwhite::convexity_bias` |
 | 50-step Hull-White Bermudan swaption | `hullwhite::bermudan` |
+| 50-step G2 Bermudan swaption | `g2tree::price` |
 | `G2::discountBond` | `gauss1d::discount_bond` |
 | `CPI::laggedFixing` flat and linear | `inflation::lagged_fixing`, `inflation::linear_fixing` |
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |
