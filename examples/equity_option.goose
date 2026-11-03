@@ -14,6 +14,7 @@ import quant.vanilla_integral;
 import quant.fd;
 import quant.mc;
 import quant.qmc;
+import quant.lsmc;
 
 fn fail(msg: u8[:]) {
     write_stdout(msg);
@@ -117,6 +118,9 @@ fn ::main() {
     let sobol, qok = qmc::european_put(spot, strike, r, q, vol, t, 32768);
     if !qok { fail("qmc"); }
     row("QMC (Sobol)", sobol, 0.0, 0.0, true, false, false);
+    let ls, paths, lsok = lsmc::american_put(spot, strike, r, q, vol, t, 0.02, 42);
+    if !lsok || paths < 1 { fail("lsmc"); }
+    row("MC (Longstaff Schwartz)", 0.0, 0.0, ls, false, false, true);
     if a2 + 1.0e-8 < e2 { fail("exercise"); }
 }
 

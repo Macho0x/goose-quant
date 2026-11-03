@@ -91,6 +91,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `FdBlackScholesVanillaEngine` | `fd::npv` |
 | crude Monte Carlo European put | `mc::european_put` |
 | Sobol European put | `qmc::european_put` |
+| Longstaff-Schwartz American put | `lsmc::american_put` |
 | discrete hedging replication error | `hedge::show` |
 | `AnalyticBlackVasicekEngine` | `vasicek::npv` |
 | `AnalyticHestonEngine` | `heston::npv` |
