@@ -112,5 +112,33 @@ fn ::main() {
     want22[2] = ymd(20, 12, 2009).serial;
     expect(out, n22, want22);
 
+    let start = ymd(15, 1, 2020);
+    let end2 = ymd(15, 1, 2022);
+    let nt, tok = schedule::build_twentieth(start, end2, 3, period::MONTHS, markets::NULL_CAL, calendar::UNADJUSTED, calendar::UNADJUSTED, false, out);
+    if !tok { fail("twentieth"); }
+    var want_t: i32[10] = [0; 10];
+    want_t[0] = ymd(15, 1, 2020).serial;
+    want_t[1] = ymd(20, 1, 2020).serial;
+    want_t[2] = ymd(20, 4, 2020).serial;
+    want_t[3] = ymd(20, 7, 2020).serial;
+    want_t[4] = ymd(20, 10, 2020).serial;
+    want_t[5] = ymd(20, 1, 2021).serial;
+    want_t[6] = ymd(20, 4, 2021).serial;
+    want_t[7] = ymd(20, 7, 2021).serial;
+    want_t[8] = ymd(20, 10, 2021).serial;
+    want_t[9] = ymd(20, 1, 2022).serial;
+    expect(out, nt, want_t);
+
+    let end1 = ymd(15, 1, 2021);
+    let nw, wok = schedule::third_wednesday(start, end1, 3, period::MONTHS, markets::NULL_CAL, calendar::UNADJUSTED, calendar::UNADJUSTED, out);
+    if !wok { fail("wednesday"); }
+    var want_w: i32[5] = [0; 5];
+    want_w[0] = ymd(15, 1, 2020).serial;
+    want_w[1] = ymd(15, 4, 2020).serial;
+    want_w[2] = ymd(15, 7, 2020).serial;
+    want_w[3] = ymd(21, 10, 2020).serial;
+    want_w[4] = ymd(15, 1, 2021).serial;
+    expect(out, nw, want_w);
+
     write_stdout("schedule rules ok\n");
 }

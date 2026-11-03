@@ -13,6 +13,8 @@ const BACKWARD: i32 = 0;
 const FORWARD: i32 = 1;
 const ZERO: i32 = 2;
 const CDS: i32 = 8;
+const TWENTIETH: i32 = 9;
+const THIRD_WEDNESDAY: i32 = 10;
 
 fn allows_end_of_month(n: i32, unit: i32) -> bool {
     if n <= 0 { return false; }
@@ -326,4 +328,90 @@ fn build_cds(effective: date::Date, termination: date::Date, n: i32, unit: i32, 
         c += 1;
     }
     return dates.len as i32, true;
+}
+
+fn calendar_twentieth(d: date::Date, imm: bool) -> date::Date, bool {
+    if date::is_blank(d) { return date::blank(), false; }
+    var result, rok = date::from_ymd(20, date::month(d), date::year(d));
+    if !rok { return date::blank(), false; }
+    if result.serial < d.serial {
+        let bumped, bok = date::plus_months(result, 1);
+        if !bok { return date::blank(), false; }
+        result = bumped;
+    }
+    if !imm { return result, true; }
+    let m = date::month(result);
+    if m % 3 != 0 {
+        let skip: i32 = 3 - m % 3;
+        let aligned, aok = date::plus_months(result, skip);
+        if !aok { return date::blank(), false; }
+        result = aligned;
+    }
+    return result, true;
+}
+
+fn build_twentieth(effective: date::Date, termination: date::Date, n: i32, unit: i32, kind: i32, conv: i32, term_conv: i32, imm: bool, out: i32[:]) -> i32, bool {
+    if date::is_blank(effective) || date::is_blank(termination) { return 0, false; }
+    if effective.serial >= termination.serial || n <= 0 { return 0, false; }
+    var dates: i32[>..] = [];
+    dates.push(effective.serial);
+    var seed = effective;
+    let next, nok = calendar_twentieth(effective, imm);
+    if !nok { return 0, false; }
+    if next.serial != effective.serial {
+        dates.push(next.serial);
+        seed = next;
+    }
+    var periods: i32 = 1;
+    while periods < 4000 {
+        let temp, ok = stepped(seed, periods * n, unit, conv, false);
+        if !ok { return 0, false; }
+        if temp.serial > termination.serial { break; }
+        let back, bok = date::from_serial(dates[dates.len - 1]);
+        if bok && !same_adjusted(kind, back, temp, conv) {
+            dates.push(temp.serial);
+        }
+        periods += 1;
+    }
+    let back, bok = date::from_serial(dates[dates.len - 1]);
+    if bok && !same_adjusted(kind, back, termination, term_conv) {
+        let end, eok = calendar_twentieth(termination, imm);
+        if !eok { return 0, false; }
+        dates.push(end.serial);
+    }
+    if conv != calendar::UNADJUSTED {
+        let front, fok = date::from_serial(dates[0]);
+        let adj, aok = adjusted(kind, front, conv);
+        if !fok || !aok { return 0, false; }
+        dates[0] = adj.serial;
+    }
+    var k: i64 = 1;
+    while k < dates.len - 1 {
+        let cur, cok = date::from_serial(dates[k]);
+        let adj, aok = adjusted(kind, cur, conv);
+        if !cok || !aok { return 0, false; }
+        dates[k] = adj.serial;
+        k += 1;
+    }
+    if dates.len < 2 || dates.len > out.len { return 0, false; }
+    var c: i64 = 0;
+    while c < dates.len {
+        out[c] = dates[c];
+        c += 1;
+    }
+    return dates.len as i32, true;
+}
+
+fn third_wednesday(effective: date::Date, termination: date::Date, n: i32, unit: i32, kind: i32, conv: i32, term_conv: i32, out: i32[:]) -> i32, bool {
+    let n_dates, ok = build(effective, termination, n, unit, kind, conv, term_conv, FORWARD, false, out);
+    if !ok || n_dates < 3 { return n_dates, ok; }
+    var i: i64 = 1;
+    while i < n_dates as i64 - 1 {
+        let cur, cok = date::from_serial(out[i]);
+        let wed, wok = date::nth_weekday(3, date::WEDNESDAY, date::month(cur), date::year(cur));
+        if !cok || !wok { return 0, false; }
+        out[i] = wed.serial;
+        i += 1;
+    }
+    return n_dates, true;
 }
