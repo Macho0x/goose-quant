@@ -10,6 +10,7 @@ import quant.bjerk;
 import quant.vasicek;
 import quant.vanilla_integral;
 import quant.fd;
+import quant.mc;
 
 fn fail(msg: u8[:]) {
     write_stdout(msg);
@@ -101,6 +102,9 @@ fn ::main() {
     let e7, b7, a7, ok7 = triple(spot, strike, r, q, vol, t, steps, stops, 6);
     if !ok7 { fail("joshi"); }
     row("Binomial Joshi", e7, b7, a7, true, true, true);
+    let crude, samples, mok = mc::european_put(spot, strike, r, q, vol, t, 0.02, 42);
+    if !mok || samples < 1 { fail("mc"); }
+    row("MC (crude)", crude, 0.0, 0.0, true, false, false);
     if a2 + 1.0e-8 < e2 { fail("exercise"); }
 }
 

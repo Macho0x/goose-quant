@@ -87,6 +87,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `BjerksundStenslandApproximationEngine` | `bjerk::npv` |
 | `IntegralEngine` | `vanilla_integral::npv` |
 | `FdBlackScholesVanillaEngine` | `fd::npv` |
+| crude Monte Carlo European put | `mc::european_put` |
 | `AnalyticBlackVasicekEngine` | `vasicek::npv` |
 | continuous geometric Asian | `asian::npv` |
 | order-15 Gauss-Hermite | `gauss::integrate` |
