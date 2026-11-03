@@ -2,6 +2,7 @@
 // rate. A discount curve stores dates and discount factors.
 
 import date;
+import daycount;
 import rate;
 import math;
 
@@ -65,6 +66,15 @@ fn implied_discount(r: f64, compounding: i32, freq: i32, t_base: f64, t: f64) ->
     let full, fok = flat_discount(r, compounding, freq, t);
     if !bok || !fok || base == 0.0 { return 0.0, false; }
     return full / base, true;
+}
+
+fn flat_continuous_zero(r: f64, dc: daycount::Count, d1: date::Date, d2: date::Date) -> f64, bool {
+    let t, ok = daycount::year_fraction(dc, d1, d2, date::blank(), date::blank());
+    if !ok || t < 0.0 { return 0.0, false; }
+    if t == 0.0 { return r, true; }
+    let df, dok = flat_discount(r, rate::CONTINUOUS, 0, t);
+    if !dok || df <= 0.0 { return 0.0, false; }
+    return -log(df) / t, true;
 }
 
 fn zero_spreaded_discount(r: f64, spread: f64, t: f64) -> f64, bool {

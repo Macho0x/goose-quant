@@ -66,3 +66,58 @@ fn basis_point_value(times: f64[:], amounts: f64[:], r: f64, compounding: i32, f
     if simple == 0.0 { return 0.0, true; }
     return 0.0, false;
 }
+
+fn occurred(pay: i32, settlement: i32, include: bool) -> bool {
+    if include { return pay < settlement; }
+    return pay <= settlement;
+}
+
+fn aggregate_from(pay: i32[:], coupon: bool[:], nominal: f64[:], accrual: f64[:], dc: i32[:], rate: f64[:], index: i64, step: i64) -> f64, bool {
+    if index < 0 || index >= pay.len { return 0.0, true; }
+    let when = pay[index];
+    var seen = false;
+    var nom = 0.0;
+    var acc = 0.0;
+    var counter: i32 = 0;
+    var sum = 0.0;
+    var i = index;
+    while i >= 0 && i < pay.len && pay[i] == when {
+        if coupon[i] {
+            if seen && (nominal[i] != nom || accrual[i] != acc || dc[i] != counter) { return 0.0, false; }
+            if !seen {
+                seen = true;
+                nom = nominal[i];
+                acc = accrual[i];
+                counter = dc[i];
+            }
+            sum += rate[i];
+        }
+        i += step;
+    }
+    if !seen { return 0.0, false; }
+    return sum, true;
+}
+
+fn next_coupon_rate(pay: i32[:], coupon: bool[:], nominal: f64[:], accrual: f64[:], dc: i32[:], rate: f64[:], settlement: i32, include: bool) -> f64, bool {
+    if pay.len == 0 { return 0.0, true; }
+    var i: i64 = 0;
+    while i < pay.len {
+        if !occurred(pay[i], settlement, include) {
+            return aggregate_from(pay, coupon, nominal, accrual, dc, rate, i, 1);
+        }
+        i += 1;
+    }
+    return 0.0, true;
+}
+
+fn previous_coupon_rate(pay: i32[:], coupon: bool[:], nominal: f64[:], accrual: f64[:], dc: i32[:], rate: f64[:], settlement: i32, include: bool) -> f64, bool {
+    if pay.len == 0 { return 0.0, true; }
+    var i = pay.len - 1;
+    while i >= 0 {
+        if occurred(pay[i], settlement, include) {
+            return aggregate_from(pay, coupon, nominal, accrual, dc, rate, i, -1);
+        }
+        i -= 1;
+    }
+    return 0.0, true;
+}

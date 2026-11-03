@@ -44,6 +44,43 @@ fn yield_npv(pay: i32[:], amounts: f64[:], settlement: i32, y: f64, compounding:
     return npv, true;
 }
 
+fn leg_npv(pay: i32[:], amounts: f64[:], settlement: i32, include: bool, y: f64, compounding: i32, freq: i32, dc: daycount::Count) -> f64, bool {
+    let base, ok = yield_npv(pay, amounts, settlement, y, compounding, freq, dc);
+    if !ok { return 0.0, false; }
+    if !include { return base, true; }
+    var extra = 0.0;
+    var i: i64 = 0;
+    while i < pay.len {
+        if pay[i] == settlement { extra += amounts[i]; }
+        i += 1;
+    }
+    return base + extra, true;
+}
+
+fn leg_bps(pay: i32[:], coupon: bool[:], nominal: f64[:], accrual: f64[:], settlement: i32, y: f64, compounding: i32, freq: i32, dc: daycount::Count) -> f64, bool {
+    if pay.len != coupon.len || pay.len != nominal.len || pay.len != accrual.len { return 0.0, false; }
+    var bps = 0.0;
+    var discount = 1.0;
+    var last = settlement;
+    var i: i64 = 0;
+    while i < pay.len {
+        if coupon[i] && pay[i] > settlement {
+            let d1, ok1 = date::from_serial(last);
+            let d2, ok2 = date::from_serial(pay[i]);
+            if !ok1 || !ok2 { return 0.0, false; }
+            let t, tok = daycount::year_fraction(dc, d1, d2, date::blank(), date::blank());
+            if !tok { return 0.0, false; }
+            let step, sok = rate::discount_factor(y, compounding, freq, t);
+            if !sok { return 0.0, false; }
+            discount *= step;
+            bps += nominal[i] * accrual[i] * discount;
+            last = pay[i];
+        }
+        i += 1;
+    }
+    return 0.0001 * bps, true;
+}
+
 fn curve_npv(pay: i32[:], amounts: f64[:], times: f64[:], discounts: f64[:], settlement: i32, ref: i32, dc: daycount::Count) -> f64, bool {
     if pay.len != amounts.len { return 0.0, false; }
     let ref_d, rok = date::from_serial(ref);
