@@ -48,5 +48,18 @@ fn ::main() {
     let rback, r2 = optim::rosenbrock(out);
     if !r2 || rback != ros { fail("rosenbrock point"); }
 
+    let fly, fok = optim::firefly_min(out);
+    if !fok || out.len != 2 { fail("firefly run"); }
+    var relf = (fly - want) / want;
+    if relf < 0.0 { relf = -relf; }
+    if relf >= 1.0e-6 { fail("firefly value"); }
+    let fback, f2 = optim::eggholder(out);
+    if !f2 || fback != fly { fail("firefly point"); }
+
+    let swarm, wok = optim::swarm_min(out);
+    if !wok || out.len != 3 || gap(swarm, 0.0) >= 1.0e-6 { fail("swarm"); }
+    let sback, s2 = optim::rosenbrock(out);
+    if !s2 || sback != swarm { fail("swarm point"); }
+
     write_stdout("optim ok\n");
 }

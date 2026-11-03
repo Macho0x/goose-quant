@@ -116,6 +116,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | 801-step CRR zero-coupon convertible | `convertible::crr` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
+| firefly eggholder and particle-swarm Rosenbrock | `optim::firefly_min`, `optim::swarm_min` |
 | one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 | Gaussian and Student-t probability of at least N defaults | `latent::prob_at_least`, `latent::prob_at_least_t` |
 | Gaussian large-homogeneous-pool tranche loss | `basket::expected_tranche_loss` |

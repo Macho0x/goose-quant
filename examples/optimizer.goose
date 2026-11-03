@@ -34,5 +34,11 @@ fn ::main() {
     let ros, rok = optim::rosenbrock_min(out);
     if !rok { fail("rosenbrock"); }
     show("rosenbrock", out, ros);
+    let fly, fok = optim::firefly_min(out);
+    if !fok { fail("firefly"); }
+    show("firefly", out, fly);
+    let swarm, sok = optim::swarm_min(out);
+    if !sok { fail("swarm"); }
+    show("swarm", out, swarm);
     write_stdout("optimizer ok\n");
 }
