@@ -120,6 +120,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 | Gaussian and Student-t probability of at least N defaults | `latent::prob_at_least`, `latent::prob_at_least_t` |
 | Gaussian large-homogeneous-pool tranche loss | `basket::expected_tranche_loss` |
+| Gaussian random-default and random-loss tranche means | `basket::random_default_tranche`, `basket::random_loss_tranche` |
 | payer swap CVA and the basis-point fair-rate correction | `cva::amount`, `cva::correction` |
 
 Market kind numbers above 9 live in `markets_west`, `markets_north`, `markets_east`, `markets_americas`, `markets_asia`, `markets_seasia`, and `markets_other` as those files land. Each file's header lists its constants.

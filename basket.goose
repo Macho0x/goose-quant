@@ -1,12 +1,19 @@
-// Gaussian large-homogeneous-pool expected tranche loss.
-// QuantLib GaussianLHPLossModel::expectedTrancheLossImpl, with West's
-// bivariate normal (the library's default) and Acklam's inverse already
-// in normal.goose. Flat hazards use Actual/365 Fixed, as the example's
-// curves do. The example's random-default and random-loss sections are
-// not in this file.
+// Gaussian large-homogeneous-pool expected tranche loss, plus the
+// BasketLosses one-factor Gaussian random-default and random-loss
+// tranche means. West's bivariate normal and Acklam's inverse are in
+// normal.goose. Flat hazards use Actual/365 Fixed, as the example's
+// curves do. Both simulators draw Box-Muller normals from mt.goose,
+// QuantLib's Mersenne Twister, which is the example's random-default
+// generator. The example's random-loss generator is Sobol; the package
+// Sobol is one-dimensional, so random loss draws the same Gaussian
+// factors from the twister. A full tranche (attachment 0, detachment 1)
+// has mean notional * (1 - recovery) * average default probability.
+// Binomial, inhomogeneous, Student-t, and base correlation are absent:
+// no identity locks those digits.
 
 import math;
 import normal;
+import mt;
 import date;
 import period;
 import daycount;
@@ -217,4 +224,175 @@ fn five_year_loss() -> f64, bool {
     let probability, pok = average_probability(notionals, hazards, horizon);
     if !pok { return 0.0, false; }
     return expected_tranche_loss(10.0 * 100.0, probability, 0.4, 0.03, 0.06, 0.05);
+}
+
+// BasketLosses numSimulations and the Mersenne Twister seed in that file.
+const SIMULATIONS: i64 = 100000;
+const RANDOM_SEED: u32 = 2863311530;
+// GaussianSpotLossLM modelA in BasketLosses.
+const SPOT_A: f64 = 2.2;
+// ponytail: 64 names. A growable scratch array if a basket is wider.
+const NAME_CAP: i64 = 64;
+
+struct GaussGen {
+    gen: mt::Twister,
+    hold: bool,
+    spare: f64,
+}
+
+fn next_normal(g: GaussGen&) -> f64 {
+    if g.hold {
+        g.hold = false;
+        return g.spare;
+    }
+    var draw = 0.0;
+    var found = false;
+    while !found {
+        let u = mt::next_real(g.gen);
+        let v = mt::next_real(g.gen);
+        let x = u * 2.0 - 1.0;
+        let y = v * 2.0 - 1.0;
+        let r = x * x + y * y;
+        if r < 1.0 && r > 0.0 {
+            let scale = sqrt(-2.0 * log(r) / r);
+            g.spare = y * scale;
+            g.hold = true;
+            draw = x * scale;
+            found = true;
+        }
+    }
+    return draw;
+}
+
+fn clamp_tranche(loss: f64, attach_amt: f64, detach_amt: f64) -> f64 {
+    var x = loss - attach_amt;
+    if x < 0.0 { x = 0.0; }
+    let width = detach_amt - attach_amt;
+    if x > width { x = width; }
+    return x;
+}
+
+// QuantLib simEvent recovery, quantized to 1/256. pdef is the flat-curve
+// probability at the default time, which is the Gaussian draw.
+fn spot_recovery(latent: f64, pdef: f64, inv_r: f64, root_cross: f64, denom: f64, scale_r: f64) -> f64 {
+    if pdef < 1.0e-10 { return 0.0; }
+    var inv_p = 0.0;
+    if root_cross > 0.0 {
+        var p = pdef;
+        if p > 1.0 - 1.0e-12 { p = 1.0 - 1.0e-12; }
+        let iv, ok = normal::inv_cdf(p);
+        if !ok { return 0.0; }
+        inv_p = iv;
+    }
+    let z = (latent - root_cross * inv_p) / denom + scale_r * inv_r;
+    var grains = floor(normal::cdf(z) * 256.0 + 0.5);
+    if grains < 0.0 { grains = 0.0; }
+    if grains > 256.0 { grains = 256.0; }
+    return grains / 256.0;
+}
+
+// spot is false for deterministic recovery (random default) and true for
+// the spot-recovery latent model (random loss). correlation is the
+// one-factor asset correlation in [0, 1). Returns the tranche-loss mean
+// and its sample standard error.
+fn gaussian_tranche(notionals: f64[:], hazards: f64[:], horizon: f64, recovery: f64, attach: f64, detach: f64, correlation: f64, sims: i64, seed: u32, spot: bool, model_a: f64) -> f64, f64, bool {
+    if bad(horizon) || horizon < 0.0 || notionals.len == 0 || notionals.len != hazards.len { return 0.0, 0.0, false; }
+    if notionals.len > NAME_CAP { return 0.0, 0.0, false; }
+    if bad(recovery) || recovery < 0.0 || recovery >= 1.0 { return 0.0, 0.0, false; }
+    if bad(attach) || bad(detach) || attach < 0.0 || detach > 1.0 || attach > detach { return 0.0, 0.0, false; }
+    if bad(correlation) || correlation < 0.0 || correlation >= 1.0 { return 0.0, 0.0, false; }
+    if sims < 2 || seed == 0 { return 0.0, 0.0, false; }
+    if spot && (bad(model_a) || model_a <= 0.0) { return 0.0, 0.0, false; }
+
+    var pd: f64[64] = [0.0; 64];
+    var total = 0.0;
+    var i: i64 = 0;
+    while i < notionals.len {
+        if bad(notionals[i]) || bad(hazards[i]) || notionals[i] < 0.0 || hazards[i] < 0.0 { return 0.0, 0.0, false; }
+        pd[i] = 1.0 - exp(-hazards[i] * horizon);
+        total += notionals[i];
+        i += 1;
+    }
+    if attach == detach || total == 0.0 { return 0.0, 0.0, true; }
+
+    var inv_r = 0.0;
+    var root_cross = 0.0;
+    var denom = 1.0;
+    var scale_r = 0.0;
+    if spot {
+        let iv, iok = normal::inv_cdf(recovery);
+        if !iok { return 0.0, 0.0, false; }
+        inv_r = iv;
+        let cross = correlation * correlation;
+        root_cross = sqrt(cross);
+        denom = model_a * sqrt(1.0 - cross);
+        if denom == 0.0 || bad(denom) { return 0.0, 0.0, false; }
+        scale_r = sqrt(1.0 + 1.0 / (model_a * model_a));
+    }
+
+    let weight = sqrt(correlation);
+    let idio = sqrt(1.0 - correlation);
+    let attach_amt = total * attach;
+    let detach_amt = total * detach;
+    let lgd = 1.0 - recovery;
+    var g = default<GaussGen>();
+    mt::seed(g.gen, seed);
+    var mark: f64[64] = [-1.0; 64];
+
+    var mean = 0.0;
+    var m2 = 0.0;
+    var seen: i64 = 0;
+    while seen < sims {
+        let mkt = next_normal(g);
+        var loss = 0.0;
+        if !spot {
+            i = 0;
+            while i < notionals.len {
+                let z = next_normal(g);
+                let y = weight * mkt + idio * z;
+                // ponytail: Phi(Y) against the horizon probability. QuantLib
+                // inverts a default day and uses a strict serial compare, one
+                // Actual/365 day shorter. Flat curves keep that inside the
+                // Monte Carlo error of the full-tranche identity.
+                if normal::cdf(y) <= pd[i] { loss += notionals[i] * lgd; }
+                i += 1;
+            }
+        } else {
+            i = 0;
+            while i < notionals.len {
+                let z = next_normal(g);
+                let y = weight * mkt + idio * z;
+                let u = normal::cdf(y);
+                if u <= pd[i] { mark[i] = u; } else { mark[i] = -1.0; }
+                i += 1;
+            }
+            i = 0;
+            while i < notionals.len {
+                let z = next_normal(g);
+                if mark[i] >= 0.0 {
+                    let y = weight * mkt + idio * z;
+                    let rr = spot_recovery(y, mark[i], inv_r, root_cross, denom, scale_r);
+                    loss += notionals[i] * (1.0 - rr);
+                }
+                i += 1;
+            }
+        }
+        let x = clamp_tranche(loss, attach_amt, detach_amt);
+        seen += 1;
+        let delta = x - mean;
+        mean += delta / seen;
+        m2 += delta * (x - mean);
+    }
+    if m2 < 0.0 { m2 = 0.0; }
+    let se = sqrt((m2 / (sims - 1.0)) / sims);
+    if bad(mean) || bad(se) { return 0.0, 0.0, false; }
+    return mean, se, true;
+}
+
+fn random_default_tranche(notionals: f64[:], hazards: f64[:], horizon: f64, recovery: f64, attach: f64, detach: f64, correlation: f64, sims: i64, seed: u32) -> f64, f64, bool {
+    return gaussian_tranche(notionals, hazards, horizon, recovery, attach, detach, correlation, sims, seed, false, 0.0);
+}
+
+fn random_loss_tranche(notionals: f64[:], hazards: f64[:], horizon: f64, recovery: f64, attach: f64, detach: f64, correlation: f64, sims: i64, seed: u32, model_a: f64) -> f64, f64, bool {
+    return gaussian_tranche(notionals, hazards, horizon, recovery, attach, detach, correlation, sims, seed, true, model_a);
 }

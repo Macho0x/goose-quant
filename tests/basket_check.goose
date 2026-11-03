@@ -9,6 +9,18 @@ fn fail(msg: u8[:]) {
     exit(1);
 }
 
+fn show_fail(msg: u8[:], got: f64, want: f64, se: f64) {
+    var line: u8[>..] = [];
+    format(line, msg);
+    format(line, " ");
+    format(line, got);
+    format(line, " ");
+    format(line, want);
+    format(line, " ");
+    format(line, se);
+    fail(line);
+}
+
 fn gap(a: f64, b: f64) -> f64 {
     var d = a - b;
     if d < 0.0 { d = -d; }
@@ -44,5 +56,41 @@ fn ::main() {
     if is_nan(printed) || is_inf(printed) || !(printed > 0.0) || printed > 1000.0 * (0.06 - 0.03) {
         fail("example");
     }
+
+    // Correlation 1 is not a Gaussian copula factor loading.
+    let rejected, rse, rok = basket::random_default_tranche(notionals, hazards, horizon, 0.0, 0.0, 1.0, 1.0, 2, basket::RANDOM_SEED);
+    if rok || rse != 0.0 || rejected != 0.0 { fail("reject"); }
+
+    // Correlation 0, recovery 0, attachment 0, detachment 1: every default
+    // is a full notional loss and the tranche keeps it, so the mean is
+    // notional times the average default probability.
+    let rd_got, rd_se, rd_ok = basket::random_default_tranche(notionals, hazards, horizon, 0.0, 0.0, 1.0, 0.0, basket::SIMULATIONS, basket::RANDOM_SEED);
+    let rd_want = 1000.0 * p;
+    if !rd_ok { fail("random default"); }
+    if gap(rd_got, rd_want) > 4.0 * rd_se { show_fail("random default", rd_got, rd_want, rd_se); }
+    let analytic = bernoulli_se(notionals, hazards, horizon, 1.0, basket::SIMULATIONS);
+    if analytic == 0.0 || gap(rd_se, analytic) / analytic > 0.05 { show_fail("random default se", rd_se, analytic, rd_got - rd_want); }
+
+    // Spot recovery keeps the single-name expected loss, so the same full
+    // tranche with the example recovery is notional * (1 - 0.4) * probability.
+    let rl_got, rl_se, rl_ok = basket::random_loss_tranche(notionals, hazards, horizon, 0.4, 0.0, 1.0, 0.0, basket::SIMULATIONS, basket::RANDOM_SEED, basket::SPOT_A);
+    let rl_want = 1000.0 * (1.0 - 0.4) * p;
+    if !rl_ok { fail("random loss"); }
+    if gap(rl_got, rl_want) > 4.0 * rl_se { show_fail("random loss", rl_got, rl_want, rl_se); }
+    let loss_analytic = bernoulli_se(notionals, hazards, horizon, 0.6, basket::SIMULATIONS);
+    if rl_se < 0.5 * loss_analytic || rl_se > 3.0 * loss_analytic { show_fail("random loss se", rl_se, loss_analytic, rl_got - rl_want); }
+
     write_stdout("basket ok\n");
+}
+
+fn bernoulli_se(notionals: f64[:], hazards: f64[:], horizon: f64, lgd: f64, sims: i64) -> f64 {
+    var v = 0.0;
+    var i: i64 = 0;
+    while i < notionals.len {
+        let prob = 1.0 - exp(-hazards[i] * horizon);
+        let loss = notionals[i] * lgd;
+        v += loss * loss * prob * (1.0 - prob);
+        i += 1;
+    }
+    return sqrt(v / sims);
 }
