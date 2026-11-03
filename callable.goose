@@ -156,7 +156,7 @@ fn grid_index(times: f64[:], t: f64) -> i64, bool {
 }
 
 // Coupons marked pre are paid before the call; the rest are paid after.
-fn on_date(values: f64[:], c_at: i64[:], c_amt: f64[:], c_pre: i64[:], k_at: i64[:], k_px: f64[:], at: i64) {
+fn on_date(values: f64[:], c_at: i64[:], c_amt: f64[:], c_pre: i64[:], k_at: i64[:], k_px: f64[:], k_side: i64[:], at: i64) {
     var k = 0;
     while k < c_at.len {
         if c_pre[k] == 1 && c_at[k] == at {
@@ -172,9 +172,12 @@ fn on_date(values: f64[:], c_at: i64[:], c_amt: f64[:], c_pre: i64[:], k_at: i64
     while k < k_at.len {
         if k_at[k] == at {
             let strike = k_px[k];
+            let put = k < k_side.len && k_side[k] == 1;
             var j = 0;
             while j < values.len {
-                if values[j] > strike { values[j] = strike; }
+                if put {
+                    if values[j] < strike { values[j] = strike; }
+                } else if values[j] > strike { values[j] = strike; }
                 j += 1;
             }
         }
@@ -196,7 +199,8 @@ fn on_date(values: f64[:], c_at: i64[:], c_amt: f64[:], c_pre: i64[:], k_at: i64
 // testCached bond1: 3 Jun 2004, TARGET, flat 3.2% continuous Actual/365,
 // Hull-White a=0.1 sigma=0.01, semiannual 5% of 10000, calls at 110 clean
 // on even years, 240-step TreeCallableFixedRateBondEngine. Clean price.
-fn tree_clean() -> f64, bool {
+// mode 0 is that call. mode 1 is the put at 100 on odd years. mode 2 is both.
+fn tree_bond(mode: i32) -> f64, bool {
     let today, tok = date::from_ymd(3, date::JUNE, 2004);
     if !tok { return 0.0, false; }
     let back, bok = date::plus_days(today, -100);
@@ -215,7 +219,7 @@ fn tree_clean() -> f64, bool {
     let face = 10000.0;
     let coupon = 0.05;
     let flat = 0.032;
-    let call_clean = 110.0;
+    if mode < 0 || mode > 2 { return 0.0, false; }
     let a = 0.1;
     let sig = 0.01;
     let steps: i64 = 240;
@@ -260,8 +264,18 @@ fn tree_clean() -> f64, bool {
     var cd: i32[>..] = [];
     var cstrike: f64[>..] = [];
     var cwhen: f64[>..] = [];
-    var yr: i32 = 2;
-    while yr < 10 {
+    var k_side: i64[>..] = [];
+    var spec_year: i32[9] = [2, 4, 6, 8, 1, 3, 5, 7, 9];
+    var spec_clean: f64[9] = [110.0, 110.0, 110.0, 110.0, 100.0, 100.0, 100.0, 100.0, 100.0];
+    var spec_side: i64[9] = [0, 0, 0, 0, 1, 1, 1, 1, 1];
+    var spec_i: i64 = 0;
+    var spec_n: i64 = 4;
+    if mode == 1 { spec_i = 4; spec_n = 9; }
+    if mode == 2 { spec_n = 9; }
+    while spec_i < spec_n {
+        let yr = spec_year[spec_i];
+        let clean_px = spec_clean[spec_i];
+        let side = spec_side[spec_i];
         let when, wok = business(issue, yr, period::YEARS);
         if !wok { return 0.0, false; }
         if when.serial > settle.serial && when.serial < red_d.serial {
@@ -284,7 +298,7 @@ fn tree_clean() -> f64, bool {
                 }
                 k += 1;
             }
-            var strike = call_clean + accrued_pct;
+            var strike = clean_px + accrued_pct;
             let t_call, tck = yf_act(settle, when);
             if !tck || t_call < 0.0 { return 0.0, false; }
             var t_use = t_call;
@@ -305,8 +319,9 @@ fn tree_clean() -> f64, bool {
             cd.push(when.serial);
             cstrike.push(strike);
             cwhen.push(t_use);
+            k_side.push(side);
         }
-        yr += 2;
+        spec_i += 1;
     }
     var i = 0;
     while i < cd.len {
@@ -559,7 +574,7 @@ fn tree_clean() -> f64, bool {
         cur[z] = face;
         z += 1;
     }
-    on_date(cur[0..counts[red]], c_at, amt, pre, k_at, cstrike, red);
+    on_date(cur[0..counts[red]], c_at, amt, pre, k_at, cstrike, k_side, red);
     if red > 0 {
         step = red;
         while step > 0 {
@@ -582,10 +597,16 @@ fn tree_clean() -> f64, bool {
                 j += 1;
             }
             if step != 0 {
-                on_date(cur[0..n], c_at, amt, pre, k_at, cstrike, step);
+                on_date(cur[0..n], c_at, amt, pre, k_at, cstrike, k_side, step);
             }
         }
-        on_date(cur[0..counts[0]], c_at, amt, pre, k_at, cstrike, 0);
+        on_date(cur[0..counts[0]], c_at, amt, pre, k_at, cstrike, k_side, 0);
     }
     return (cur[0] - accrued) * 100.0 / face, true;
 }
+
+fn tree_clean() -> f64, bool { return tree_bond(0); }
+
+fn tree_put() -> f64, bool { return tree_bond(1); }
+
+fn tree_both() -> f64, bool { return tree_bond(2); }

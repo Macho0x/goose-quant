@@ -32,5 +32,11 @@ fn ::main() {
     let hw, hok = callable::tree_clean();
     if !hok { fail("tree"); }
     show(hw);
+    let put, pok = callable::tree_put();
+    if !pok { fail("put"); }
+    show(put);
+    let both, bok = callable::tree_both();
+    if !bok { fail("both"); }
+    show(both);
     write_stdout("callable bonds ok\n");
 }
