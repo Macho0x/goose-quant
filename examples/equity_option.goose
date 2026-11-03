@@ -7,6 +7,7 @@ import quant.european;
 import quant.tree;
 import quant.baw;
 import quant.bjerk;
+import quant.qd;
 import quant.vasicek;
 import quant.heston;
 import quant.bates;
@@ -85,6 +86,9 @@ fn ::main() {
     let bj, jok = bjerk::npv(black::PUT, spot, strike, r, q, vol, t);
     if !jok { fail("bjerk"); }
     row("Bjerksund/Stensland", 0.0, 0.0, bj, false, false, true);
+    let qd_fast, qdok = qd::npv_fast(spot, strike, r, q, vol, t);
+    if !qdok { fail("qd"); }
+    row("QD+ fixed-point (fast)", 0.0, 0.0, qd_fast, false, false, true);
     let fde, fdok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::EUROPEAN, stops);
     let fdb, fdbok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::BERMUDAN, stops);
     let fda, fdaok = fd::npv(black::PUT, spot, strike, r, q, vol, t, 801, 800, fd::AMERICAN, stops);

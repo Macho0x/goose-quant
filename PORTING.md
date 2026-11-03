@@ -87,6 +87,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `BondForward` | `examples/repo.goose` |
 | indexed-coupon FRA bootstrap | `examples/fra.goose` |
 | `BjerksundStenslandApproximationEngine` | `bjerk::npv` |
+| `QdFpAmericanEngine` fast scheme | `qd::npv_fast` |
 | `IntegralEngine` | `vanilla_integral::npv` |
 | `FdBlackScholesVanillaEngine` | `fd::npv` |
 | crude Monte Carlo European put | `mc::european_put` |
