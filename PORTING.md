@@ -89,6 +89,8 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `FdBlackScholesVanillaEngine` | `fd::npv` |
 | crude Monte Carlo European put | `mc::european_put` |
 | `AnalyticBlackVasicekEngine` | `vasicek::npv` |
+| `AnalyticHestonEngine` | `heston::npv` |
+| `BatesEngine` | `bates::npv` |
 | continuous geometric Asian | `asian::npv` |
 | order-15 Gauss-Hermite | `gauss::integrate` |
 | CDS schedule and `cdsMaturity` | `schedule::build_cds`, `schedule::cds_maturity` |

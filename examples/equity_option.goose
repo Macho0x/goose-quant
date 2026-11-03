@@ -8,6 +8,8 @@ import quant.tree;
 import quant.baw;
 import quant.bjerk;
 import quant.vasicek;
+import quant.heston;
+import quant.bates;
 import quant.vanilla_integral;
 import quant.fd;
 import quant.mc;
@@ -66,6 +68,12 @@ fn ::main() {
     let vas, vok = vasicek::npv(black::PUT, spot, strike, r, q, vol, t, 0.3, 0.3, 0.15, 0.0, 0.5);
     if !vok { fail("vasicek"); }
     row("Black Vasicek Model", vas, 0.0, 0.0, true, false, false);
+    let hest, hok = heston::npv(black::PUT, spot, strike, r, q, vol * vol, 1.0, vol * vol, 0.001, 0.0, t);
+    if !hok { fail("heston"); }
+    row("Heston semi-analytic", hest, 0.0, 0.0, true, false, false);
+    let bat, batok = bates::npv(black::PUT, spot, strike, r, q, vol * vol, 1.0, vol * vol, 0.001, 0.0, 1.0e-14, 1.0e-14, 1.0e-14, t);
+    if !batok { fail("bates"); }
+    row("Bates semi-analytic", bat, 0.0, 0.0, true, false, false);
     let integ, iok = vanilla_integral::npv(black::PUT, spot, strike, r, q, vol, t);
     if !iok { fail("integral"); }
     row("Integral", integ, 0.0, 0.0, true, false, false);
