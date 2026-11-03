@@ -29,5 +29,8 @@ fn ::main() {
     let px, ok = callable::price();
     if !ok { fail("price"); }
     show(px);
+    let hw, hok = callable::tree_clean();
+    if !hok { fail("tree"); }
+    show(hw);
     write_stdout("callable bonds ok\n");
 }

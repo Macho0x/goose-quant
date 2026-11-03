@@ -109,6 +109,7 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `G2::discountBond` | `gauss1d::discount_bond` |
 | `CPI::laggedFixing` flat and linear | `inflation::lagged_fixing`, `inflation::linear_fixing` |
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |
+| Hull-White callable fixed-rate tree clean price | `callable::tree_clean` |
 | one-step lognormal caplet | `lmm::caplet` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
