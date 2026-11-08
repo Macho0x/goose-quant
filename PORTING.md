@@ -118,11 +118,13 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | one-step means of every forward and caplet | `lmm::one_step_rates` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | 801-step CRR zero-coupon convertible | `convertible::crr` |
+| coupon, dividend, and American convertible trees | `convertible::binomial` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
 | firefly eggholder and particle-swarm Rosenbrock | `optim::firefly_min`, `optim::swarm_min` |
 | simulated annealing on Rosenbrock | `optim::anneal_min` |
 | one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 | Gaussian and Student-t probability of at least N defaults | `latent::prob_at_least`, `latent::prob_at_least_t` |
+| 100000-path latent Monte Carlo | `latent::mc_at_least` |
 | Gaussian large-homogeneous-pool tranche loss | `basket::expected_tranche_loss` |
 | Gaussian binomial tranche | `basket::gaussian_binomial_tranche` |
 | Gaussian random-default and random-loss tranche means | `basket::random_default_tranche`, `basket::random_loss_tranche` |

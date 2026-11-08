@@ -4,6 +4,8 @@
 // loading cancels in that sum; the copula is checked in the test.
 // The four lines after the loss are prob_at_least for N = 0, 1, 2, 3
 // on that date, Gaussian direct integration, then the T_3 integral.
+// The eight lines after that are the same events from 100000 Mersenne
+// Twister paths, seed 2863311530, Gaussian then T_3.
 
 import os;
 import quant from "..";
@@ -43,6 +45,20 @@ fn ::main() {
         let p, aok = latent::prob_at_least_t(n, pd, w, latent::NAMES);
         if !aok { fail("student"); }
         show(p);
+        n += 1;
+    }
+    var probs: f64[>..] = [];
+    var errs: f64[>..] = [];
+    if !latent::mc_at_least(pd, w, latent::NAMES, false, latent::MC_SEED, latent::MC_PATHS, probs, errs) { fail("mc"); }
+    n = 0;
+    while n <= latent::NAMES {
+        show(probs[n]);
+        n += 1;
+    }
+    if !latent::mc_at_least(pd, w, latent::NAMES, true, latent::MC_SEED, latent::MC_PATHS, probs, errs) { fail("mc-t"); }
+    n = 0;
+    while n <= latent::NAMES {
+        show(probs[n]);
         n += 1;
     }
     write_stdout("latent ok\n");

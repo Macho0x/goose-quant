@@ -94,11 +94,34 @@ fn ::main() {
     let tm, tmok = latent::prob_at_least_t(1, hp, w, 1);
     if !tmok || gap(tm, hp) > 1.0e-6 { fail("t-marginal"); }
 
+    var probs: f64[>..] = [];
+    var errs: f64[>..] = [];
+    if !latent::mc_at_least(hp, w, latent::NAMES, false, latent::MC_SEED, latent::MC_PATHS, probs, errs) { fail("mc"); }
     n = 0;
     while n <= latent::NAMES {
         let p, pok = latent::prob_at_least(n, hp, w, latent::NAMES);
-        if !pok { fail("print"); }
+        if !pok || n >= probs.len { fail("print"); }
+        if gap(probs[n], p) > 4.0 * errs[n] { fail("mc gauss"); }
         show(p);
+        n += 1;
+    }
+    if !latent::mc_at_least(hp, w, latent::NAMES, true, latent::MC_SEED, latent::MC_PATHS, probs, errs) { fail("mc t"); }
+    n = 0;
+    while n <= latent::NAMES {
+        let p, pok = latent::prob_at_least_t(n, hp, w, latent::NAMES);
+        if !pok || gap(probs[n], p) > 4.0 * errs[n] { fail("mc student"); }
+        n += 1;
+    }
+    if !latent::mc_at_least(hp, 0.0, latent::NAMES, false, latent::MC_SEED, latent::MC_PATHS, probs, errs) { fail("mc zero"); }
+    n = 0;
+    while n <= latent::NAMES {
+        if gap(probs[n], tail3(n, hp)) > 4.0 * errs[n] { fail("mc binomial"); }
+        n += 1;
+    }
+    if !latent::mc_at_least(hp, 0.0, latent::NAMES, true, latent::MC_SEED, latent::MC_PATHS, probs, errs) { fail("mc t zero"); }
+    n = 0;
+    while n <= latent::NAMES {
+        if gap(probs[n], tail3(n, hp)) > 4.0 * errs[n] { fail("mc t binomial"); }
         n += 1;
     }
     write_stdout("latent ok\n");

@@ -18,8 +18,13 @@
 // is 2/(pi (1+m*m)^2). m = tan(pi*u/2) turns an expectation into the
 // integral of g(m(u)) cos^2(pi*u/2) on [-1, 1].
 // ponytail: 4096 Simpson panels. Raise it if a loading near 1 gets steep.
+//
+// mc_at_least samples those factors with mt. A name defaults when
+// Y = w*M + sqrt(1-w*w)*Z is at most the marginal quantile. probs[n]
+// is that frequency and errs[n] is sqrt(p*(1-p)/paths).
 
 import math;
+import mt;
 import normal;
 import gauss;
 import solver;
@@ -253,4 +258,111 @@ fn prob_at_least_t(n: i64, pd: f64, weight: f64, names: i64) -> f64, bool {
         binom_at_least(n, names, c)
     };
     return got, true;
+}
+
+const MC_PATHS: i64 = 100000;
+const MC_SEED: u32 = 2863311530;
+
+fn draw_normal(g: mt::Twister &) -> f64, bool {
+    return normal::inv_cdf(mt::next_real(g));
+}
+
+// Unit-variance Student-t with 3 degrees of freedom. The raw t has
+// variance 3, so the divisor is the chi-square itself rather than chi-square/3.
+fn draw_t3(g: mt::Twister &) -> f64, bool {
+    let z, zok = draw_normal(g);
+    if !zok { return 0.0, false; }
+    var acc = 0.0;
+    var i: i64 = 0;
+    while i < 3 {
+        let e, eok = draw_normal(g);
+        if !eok { return 0.0, false; }
+        acc += e * e;
+        i += 1;
+    }
+    if acc == 0.0 { return 0.0, false; }
+    return z / sqrt(acc), true;
+}
+
+// RandomDefaultLM. probs[n] is the fraction of paths with at least n defaults.
+// ponytail: histogram of 8 counts. A growable tally if a basket is wider than 7.
+fn mc_at_least(pd: f64, weight: f64, names: i64, student: bool, seed: u32, paths: i64, probs: f64[>..] &, errs: f64[>..] &) -> bool {
+    if names <= 0 || names > 7 || paths < 2 { return false; }
+    if pd < 0.0 || pd > 1.0 { return false; }
+    let w2 = weight * weight;
+    if w2 > 1.0 || seed == 0 { return false; }
+    var threshold = 0.0;
+    if pd > 0.0 && pd < 1.0 && w2 < 1.0 {
+        if student {
+            let y, yok = t3_quantile(pd, weight);
+            if !yok { return false; }
+            threshold = y;
+        } else {
+            let y, yok = normal::inv_cdf(pd);
+            if !yok { return false; }
+            threshold = y;
+        }
+    }
+    let scale = sqrt(1.0 - w2);
+    var hist: i64[8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    var g = default<mt::Twister>();
+    mt::seed(g, seed);
+    var path: i64 = 0;
+    while path < paths {
+        var factor = 0.0;
+        if w2 > 0.0 {
+            var fok = false;
+            if student {
+                let draw, dok = draw_t3(g);
+                factor = draw;
+                fok = dok;
+            } else {
+                let draw, dok = draw_normal(g);
+                factor = draw;
+                fok = dok;
+            }
+            if !fok { return false; }
+        }
+        var hits: i64 = 0;
+        var name: i64 = 0;
+        while name < names {
+            var shock = 0.0;
+            var sok = true;
+            if w2 < 1.0 {
+                if student {
+                    let draw, dok = draw_t3(g);
+                    shock = draw;
+                    sok = dok;
+                } else {
+                    let draw, dok = draw_normal(g);
+                    shock = draw;
+                    sok = dok;
+                }
+            }
+            if !sok { return false; }
+            let asset = weight * factor + scale * shock;
+            if pd >= 1.0 || (pd > 0.0 && asset <= threshold) { hits += 1; }
+            name += 1;
+        }
+        hist[hits] += 1;
+        path += 1;
+    }
+    probs.clear();
+    errs.clear();
+    var n: i64 = 0;
+    while n <= names {
+        var tail: i64 = 0;
+        var k = n;
+        while k <= names {
+            tail += hist[k];
+            k += 1;
+        }
+        let p = tail * 1.0 / paths;
+        var v = p * (1.0 - p) / paths;
+        if v < 0.0 { v = 0.0; }
+        probs.push(p);
+        errs.push(sqrt(v));
+        n += 1;
+    }
+    return true;
 }
