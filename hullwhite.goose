@@ -64,7 +64,12 @@ fn yf30(d1: date::Date, d2: date::Date) -> f64, bool {
 // the date list alone, so its calendar is the null calendar and payment dates are
 // not rolled onto business days.
 fn bermudan(moneyness: f64) -> f64, bool {
-    if moneyness <= 0.0 { return 0.0, false; }
+    return bermudan_at(moneyness, 0.048696, 0.0058904);
+}
+
+// Same 50-step payer tree as bermudan, with the caller's Hull-White parameters.
+fn bermudan_at(moneyness: f64, revert_in: f64, vol_in: f64) -> f64, bool {
+    if moneyness <= 0.0 || revert_in < 0.0 || vol_in < 0.0 { return 0.0, false; }
     var hole: i32[1] = [0];
     let empty = hole[0..0];
     let settle, sok = date::from_ymd(19, 2, 2002);
@@ -208,8 +213,8 @@ fn bermudan(moneyness: f64) -> f64, bool {
     }
     if uniq[0] < 0.0 { return 0.0, false; }
 
-    let revert = 0.048696;
-    let vol = 0.0058904;
+    let revert = revert_in;
+    let vol = vol_in;
     let steps: i64 = 50;
     var times: f64[>..] = [];
     var dt: f64[>..] = [];

@@ -2,6 +2,7 @@ import os;
 import quant from "..";
 import quant.hullwhite;
 import quant.g2tree;
+import quant.bermudan_cal;
 
 fn ::main() {
     let quote = 94.0;
@@ -43,5 +44,45 @@ fn ::main() {
         s += 1;
     }
     write_stdout(g2);
+    let ca, cs, cok = bermudan_cal::calibrate_hw();
+    if !cok { exit(1); }
+    var cal: u8[>..] = [];
+    format(cal, ca);
+    format(cal, " ");
+    format(cal, cs);
+    format(cal, "\n");
+    let citm, ciok = hullwhite::bermudan_at(0.8, ca, cs);
+    let catm, caok = hullwhite::bermudan_at(1.0, ca, cs);
+    let cotm, cook = hullwhite::bermudan_at(1.2, ca, cs);
+    if !ciok || !caok || !cook { exit(1); }
+    format_flt(cal, citm, 6);
+    format(cal, "\n");
+    format_flt(cal, catm, 6);
+    format(cal, "\n");
+    format_flt(cal, cotm, 6);
+    format(cal, "\n");
+    let ga, gs, gb, ge, gr, gok = bermudan_cal::calibrate_g2();
+    if !gok { exit(1); }
+    format(cal, ga);
+    format(cal, " ");
+    format(cal, gs);
+    format(cal, " ");
+    format(cal, gb);
+    format(cal, " ");
+    format(cal, ge);
+    format(cal, " ");
+    format(cal, gr);
+    format(cal, "\n");
+    let gitm, giok = g2tree::price_deal(0.8, 19, 2, 2002, ga, gs, gb, ge, gr);
+    let gatm, gaok = g2tree::price_deal(1.0, 19, 2, 2002, ga, gs, gb, ge, gr);
+    let gotm, gook = g2tree::price_deal(1.2, 19, 2, 2002, ga, gs, gb, ge, gr);
+    if !giok || !gaok || !gook { exit(1); }
+    format_flt(cal, gitm, 6);
+    format(cal, "\n");
+    format_flt(cal, gatm, 6);
+    format(cal, "\n");
+    format_flt(cal, gotm, 6);
+    format(cal, "\n");
+    write_stdout(cal);
     write_stdout("bermudan ok\n");
 }

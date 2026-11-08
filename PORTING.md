@@ -108,6 +108,8 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `HullWhite::convexityBias` | `hullwhite::convexity_bias` |
 | 50-step Hull-White Bermudan swaption | `hullwhite::bermudan` |
 | 50-step G2 Bermudan swaption | `g2tree::price` |
+| BermudanSwaption diagonal calibration | `bermudan_cal::calibrate_hw`, `bermudan_cal::calibrate_g2` |
+| calibrated Hull-White and G2 bermudan trees | `hullwhite::bermudan_at`, `g2tree::price_deal` |
 | `G2::discountBond` | `gauss1d::discount_bond` |
 | `CPI::laggedFixing` flat and linear | `inflation::lagged_fixing`, `inflation::linear_fixing` |
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |

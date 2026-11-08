@@ -55,10 +55,10 @@ fn ou_var(speed: f64, vol: f64, h: f64) -> f64 {
     return 0.5 * vol * vol / speed * (1.0 - exp(-2.0 * speed * h));
 }
 
-fn fitting(t: f64) -> f64 {
-    let temp1 = VOL_X * (1.0 - exp(-SPEED_X * t)) / SPEED_X;
-    let temp2 = VOL_Y * (1.0 - exp(-SPEED_Y * t)) / SPEED_Y;
-    return 0.5 * temp1 * temp1 + 0.5 * temp2 * temp2 + RHO * temp1 * temp2 + CURVE;
+fn fitting(t: f64, speed_x: f64, vol_x: f64, speed_y: f64, vol_y: f64, rho: f64) -> f64 {
+    let temp1 = vol_x * (1.0 - exp(-speed_x * t)) / speed_x;
+    let temp2 = vol_y * (1.0 - exp(-speed_y * t)) / speed_y;
+    return 0.5 * temp1 * temp1 + 0.5 * temp2 * temp2 + rho * temp1 * temp2 + CURVE;
 }
 
 // Branch weight for a negative factor correlation. m is the 3x3 lattice mix.
@@ -141,10 +141,15 @@ fn build_factor(speed: f64, vol: f64, step_dt: f64[:], dx: f64[>..] &, jmin: i64
 
 // Payer bermudan. moneyness scales the fair fixed rate of the 1y x 5y swap.
 fn price(moneyness: f64) -> f64, bool {
-    if moneyness <= 0.0 { return 0.0, false; }
+    return price_deal(moneyness, 19, 9, 2016, SPEED_X, VOL_X, SPEED_Y, VOL_Y, RHO);
+}
+
+fn price_deal(moneyness: f64, day: i32, month: i32, year: i32, speed_x: f64, vol_x: f64, speed_y: f64, vol_y: f64, rho: f64) -> f64, bool {
+    // ponytail: mix() is the negative-correlation branch. A positive rho needs the other lattice weights.
+    if moneyness <= 0.0 || speed_x <= 0.0 || speed_y <= 0.0 || vol_x < 0.0 || vol_y < 0.0 || rho >= 0.0 || rho <= -1.0 { return 0.0, false; }
     var hole: i32[1] = [0];
     let empty = hole[0..0];
-    let settle, sok = date::from_ymd(19, 9, 2016);
+    let settle, sok = date::from_ymd(day, month, year);
     if !sok { return 0.0, false; }
     let start, aok = calendar::advance(markets::TARGET, settle, 1, period::YEARS, calendar::FOLLOWING, false, empty, empty);
     let maturity, mok = calendar::advance(markets::TARGET, start, 5, period::YEARS, calendar::FOLLOWING, false, empty, empty);
@@ -327,8 +332,8 @@ fn price(moneyness: f64) -> f64, bool {
     var y_p0: f64[>..] = [];
     var y_p1: f64[>..] = [];
     var y_p2: f64[>..] = [];
-    build_factor(SPEED_X, VOL_X, step_dt, x_dx, x_jmin, x_origin, x_ks, x_p0, x_p1, x_p2);
-    build_factor(SPEED_Y, VOL_Y, step_dt, y_dx, y_jmin, y_origin, y_ks, y_p0, y_p1, y_p2);
+    build_factor(speed_x, vol_x, step_dt, x_dx, x_jmin, x_origin, x_ks, x_p0, x_p1, x_p2);
+    build_factor(speed_y, vol_y, step_dt, y_dx, y_jmin, y_origin, y_ks, y_p0, y_p1, y_p2);
     if x_dx.len != times.len || y_dx.len != times.len { return 0.0, false; }
     if x_origin.len != times.len + 1 || y_origin.len != times.len + 1 { return 0.0, false; }
 
@@ -336,7 +341,7 @@ fn price(moneyness: f64) -> f64, bool {
     phi.resize(step_dt.len, 0.0);
     i = 0;
     while i < step_dt.len {
-        phi[i] = fitting(times[i]);
+        phi[i] = fitting(times[i], speed_x, vol_x, speed_y, vol_y, rho);
         i += 1;
     }
 
@@ -353,7 +358,7 @@ fn price(moneyness: f64) -> f64, bool {
     var opt_i: i64 = 0;
     var pre_mark: i64 = -1;
     var post_mark: i64 = -1;
-    let rho_abs = abs(RHO);
+    let rho_abs = abs(rho);
 
     fn x_nodes(at: i64) -> i64 { return x_origin[at + 1] - x_origin[at]; }
     fn y_nodes(at: i64) -> i64 { return y_origin[at + 1] - y_origin[at]; }
