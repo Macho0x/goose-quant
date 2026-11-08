@@ -80,6 +80,27 @@ fn ::main() {
     let loss_analytic = bernoulli_se(notionals, hazards, horizon, 0.6, basket::SIMULATIONS);
     if rl_se < 0.5 * loss_analytic || rl_se > 3.0 * loss_analytic { show_fail("random loss se", rl_se, loss_analytic, rl_got - rl_want); }
 
+    // Gaussian binomial on the example basket. Attachment 0 and detachment
+    // 1 - recovery is the whole loss, so the copula integral is the
+    // notional-weighted default probability. Correlation 0 is the plain
+    // convolution; 0.05 is the same integral over the factor.
+    let full, fok = basket::gaussian_binomial_tranche(notionals, hazards, horizon, recovery, 0.0, 1.0 - recovery, 0.05);
+    let full0, f0ok = basket::gaussian_binomial_tranche(notionals, hazards, horizon, recovery, 0.0, 1.0 - recovery, 0.0);
+    let want_full = 1000.0 * (1.0 - recovery) * p;
+    if !fok || !f0ok { fail("binomial identity"); }
+    if gap(full, want_full) > 1.0e-6 { show_fail("binomial identity", full, want_full, full - want_full); }
+    if gap(full0, want_full) > 1.0e-6 { show_fail("binomial identity 0", full0, want_full, full0 - want_full); }
+
+    // 3% to 6%, correlation 0.05. The random-default mean uses the example seed.
+    // Spot recovery changes the mezzanine distribution, so that Monte Carlo
+    // is not this constant-recovery binomial. The full-tranche check above
+    // still locks random loss.
+    let bin, bok = basket::gaussian_binomial_tranche(notionals, hazards, horizon, recovery, 0.03, 0.06, 0.05);
+    if !bok { fail("binomial"); }
+    let rd3, rd3se, rd3ok = basket::random_default_tranche(notionals, hazards, horizon, recovery, 0.03, 0.06, 0.05, basket::SIMULATIONS, basket::RANDOM_SEED);
+    if !rd3ok { fail("random default tranche"); }
+    if gap(rd3, bin) > 4.0 * rd3se { show_fail("random default tranche", rd3, bin, rd3se); }
+
     write_stdout("basket ok\n");
 }
 

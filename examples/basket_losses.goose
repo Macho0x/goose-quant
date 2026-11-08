@@ -8,6 +8,13 @@ fn fail(msg: u8[:]) {
     exit(1);
 }
 
+fn show(x: f64) {
+    var line: u8[>..] = [];
+    format(line, x);
+    format(line, "\n");
+    write_stdout(line);
+}
+
 fn emit(label: u8[:], got: f64, want: f64, se: f64, ok: bool) {
     if !ok { return; }
     var gap = got - want;
@@ -32,6 +39,16 @@ fn ::main() {
     let horizon, hok = basket::example_horizon();
     let notionals: f64[10] = [100.0; 10];
     let hazards: f64[10] = [0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09];
+    if hok {
+        let bin, bok = basket::gaussian_binomial_tranche(notionals, hazards, horizon, 0.4, 0.03, 0.06, 0.05);
+        if bok { show(bin); }
+        let rd, rdse, rdok = basket::random_default_tranche(notionals, hazards, horizon, 0.4, 0.03, 0.06, 0.05, basket::SIMULATIONS, basket::RANDOM_SEED);
+        if rdok && bok {
+            var rgap = rd - bin;
+            if rgap < 0.0 { rgap = -rgap; }
+            if rgap <= 4.0 * rdse { show(rd); }
+        }
+    }
     let p, pok = basket::average_probability(notionals, hazards, horizon);
     let gate, gse, gok = basket::random_default_tranche(notionals, hazards, horizon, 0.0, 0.0, 1.0, 0.0, basket::SIMULATIONS, basket::RANDOM_SEED);
     if hok && pok && gok {

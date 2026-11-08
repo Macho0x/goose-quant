@@ -8,11 +8,13 @@
 // Sobol is one-dimensional, so random loss draws the same Gaussian
 // factors from the twister. A full tranche (attachment 0, detachment 1)
 // has mean notional * (1 - recovery) * average default probability.
-// Binomial, inhomogeneous, Student-t, and base correlation are absent:
-// no identity locks those digits.
+// The Gaussian binomial is the Poisson-binomial tranche of the conditional
+// defaults, integrated over the factor. Inhomogeneous, Student-t, and base
+// correlation stay out.
 
 import math;
 import normal;
+import gauss;
 import mt;
 import date;
 import period;
@@ -387,6 +389,102 @@ fn gaussian_tranche(notionals: f64[:], hazards: f64[:], horizon: f64, recovery: 
     let se = sqrt((m2 / (sims - 1.0)) / sims);
     if bad(mean) || bad(se) { return 0.0, 0.0, false; }
     return mean, se, true;
+}
+
+// Probability of k defaults when the names are independent. Updating from
+// the top keeps the previous count's mass intact.
+fn cond_tranche(p: f64[:], n: i64, loss_each: f64, attach_amt: f64, detach_amt: f64) -> f64 {
+    var dp: f64[65] = [0.0; 65];
+    dp[0] = 1.0;
+    var count: i64 = 0;
+    var i: i64 = 0;
+    var k: i64 = 0;
+    while i < n {
+        var pi = p[i];
+        if pi < 0.0 { pi = 0.0; }
+        if pi > 1.0 { pi = 1.0; }
+        let qi = 1.0 - pi;
+        k = count;
+        while k >= 0 {
+            dp[k + 1] = dp[k + 1] + dp[k] * pi;
+            dp[k] = dp[k] * qi;
+            k -= 1;
+        }
+        count += 1;
+        i += 1;
+    }
+    var sum = 0.0;
+    k = 0;
+    while k <= count {
+        sum += dp[k] * clamp_tranche(k * loss_each, attach_amt, detach_amt);
+        k += 1;
+    }
+    return sum;
+}
+
+// One-factor Gaussian copula, constant recovery. Conditional on the factor,
+// names default independently and the tranche is the Poisson-binomial
+// expectation. Equal notionals share one loss amount, so the count recursion
+// is exact. gauss::integrate is order 15.
+// ponytail: equal loss per name, order 15. A subset convolution if notionals
+// differ, and a higher order if a loading near 1 misses 1e-6.
+fn gaussian_binomial_tranche(notionals: f64[:], hazards: f64[:], horizon: f64, recovery: f64, attach: f64, detach: f64, correlation: f64) -> f64, bool {
+    if bad(horizon) || horizon < 0.0 || notionals.len == 0 || notionals.len != hazards.len { return 0.0, false; }
+    if notionals.len > NAME_CAP { return 0.0, false; }
+    if bad(recovery) || recovery < 0.0 || recovery >= 1.0 { return 0.0, false; }
+    if bad(attach) || bad(detach) || attach < 0.0 || detach > 1.0 || attach > detach { return 0.0, false; }
+    if bad(correlation) || correlation < 0.0 || correlation >= 1.0 { return 0.0, false; }
+
+    let n = notionals.len;
+    var pd: f64[64] = [0.0; 64];
+    var total = 0.0;
+    var i: i64 = 0;
+    while i < n {
+        if bad(notionals[i]) || bad(hazards[i]) || notionals[i] < 0.0 || hazards[i] < 0.0 { return 0.0, false; }
+        if notionals[i] != notionals[0] { return 0.0, false; }
+        pd[i] = 1.0 - exp(-hazards[i] * horizon);
+        total += notionals[i];
+        i += 1;
+    }
+    if attach == detach || total == 0.0 { return 0.0, true; }
+
+    let loss_each = notionals[0] * (1.0 - recovery);
+    let attach_amt = total * attach;
+    let detach_amt = total * detach;
+    if correlation == 0.0 {
+        let loss = cond_tranche(pd, n, loss_each, attach_amt, detach_amt);
+        if bad(loss) { return 0.0, false; }
+        return loss, true;
+    }
+
+    var inv: f64[64] = [0.0; 64];
+    i = 0;
+    while i < n {
+        if pd[i] >= 1.0e-10 {
+            let iv, iok = normal::inv_cdf(pd[i]);
+            if !iok { return 0.0, false; }
+            inv[i] = iv;
+        }
+        i += 1;
+    }
+    let weight = sqrt(correlation);
+    let idio = sqrt(1.0 - correlation);
+    let got = gauss::integrate() {
+        let mkt = it * sqrt(2.0);
+        var cp: f64[64] = [0.0; 64];
+        var k: i64 = 0;
+        while k < n {
+            if pd[k] < 1.0e-10 {
+                cp[k] = 0.0;
+            } else {
+                cp[k] = normal::cdf((inv[k] - weight * mkt) / idio);
+            }
+            k += 1;
+        }
+        exp(-it * it) * cond_tranche(cp, n, loss_each, attach_amt, detach_amt) / sqrt(PI)
+    };
+    if bad(got) { return 0.0, false; }
+    return got, true;
 }
 
 fn random_default_tranche(notionals: f64[:], hazards: f64[:], horizon: f64, recovery: f64, attach: f64, detach: f64, correlation: f64, sims: i64, seed: u32) -> f64, f64, bool {

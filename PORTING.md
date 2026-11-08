@@ -115,13 +115,16 @@ A QuantLib exception on bad input is a trailing `false` from the function that w
 | `BlackCallableZeroCouponBondEngine` clean price | `callable::price` |
 | Hull-White callable, puttable, and callable-puttable tree clean prices | `callable::tree_clean`, `callable::tree_put`, `callable::tree_both` |
 | one-step lognormal caplet and its Monte Carlo mean | `lmm::caplet`, `lmm::one_step` |
+| one-step means of every forward and caplet | `lmm::one_step_rates` |
 | European zero-coupon Tsiveriotis-Fernandes | `convertible::npv` |
 | 801-step CRR zero-coupon convertible | `convertible::crr` |
 | eggholder, Ackley, and Rosenbrock differential evolution | `optim::eggholder_min`, `optim::ackley_min`, `optim::rosenbrock_min` |
 | firefly eggholder and particle-swarm Rosenbrock | `optim::firefly_min`, `optim::swarm_min` |
+| simulated annealing on Rosenbrock | `optim::anneal_min` |
 | one-factor Gaussian joint survival and expected loss | `latent::joint_survival`, `latent::expected_loss` |
 | Gaussian and Student-t probability of at least N defaults | `latent::prob_at_least`, `latent::prob_at_least_t` |
 | Gaussian large-homogeneous-pool tranche loss | `basket::expected_tranche_loss` |
+| Gaussian binomial tranche | `basket::gaussian_binomial_tranche` |
 | Gaussian random-default and random-loss tranche means | `basket::random_default_tranche`, `basket::random_loss_tranche` |
 | payer swap CVA and the basis-point fair-rate correction | `cva::amount`, `cva::correction` |
 
