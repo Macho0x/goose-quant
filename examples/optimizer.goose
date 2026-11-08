@@ -40,5 +40,8 @@ fn ::main() {
     let swarm, sok = optim::swarm_min(out);
     if !sok { fail("swarm"); }
     show("swarm", out, swarm);
+    let ann, nok = optim::anneal_min(out);
+    if !nok { fail("anneal"); }
+    show("anneal", out, ann);
     write_stdout("optimizer ok\n");
 }

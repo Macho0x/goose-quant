@@ -61,5 +61,10 @@ fn ::main() {
     let sback, s2 = optim::rosenbrock(out);
     if !s2 || sback != swarm { fail("swarm point"); }
 
+    let ann, nok = optim::anneal_min(out);
+    if !nok || out.len != 2 || gap(ann, 0.0) > 1.0e-6 { fail("anneal"); }
+    let nback, n2 = optim::rosenbrock(out);
+    if !n2 || nback != ann { fail("anneal point"); }
+
     write_stdout("optim ok\n");
 }

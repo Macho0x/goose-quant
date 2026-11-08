@@ -180,8 +180,6 @@ fn rosenbrock_min(out: f64[>..]&) -> f64, bool {
 // first settings. Every Mersenne Twister and std::mt19937 in those runs is
 // seeded with SEED. The example leaves FireflyAlgorithm's own generator to
 // the clock; 127 keeps the same seed the file already sets.
-// Simulated annealing's temperature factor 0.99 does not get Ackley inside
-// the example's 1e-6 rule at dimensions 3, 10, or 30, so it is not exposed.
 // ponytail: Jaeckel Sobol only through dimension 6, the largest start vector here.
 
 struct Rank {
@@ -728,4 +726,54 @@ fn swarm_min(out: f64[>..]&) -> f64, bool {
         j += 1;
     }
     return best_y, true;
+}
+
+fn anneal_min(out: f64[>..]&) -> f64, bool {
+    // T0=1, factor 0.9997, 100000 steps, reset to the best point every 400. Ackley (lambda 0.1, T 350, epsilon 0.99, 1000) is not this schedule.
+    var x0 = 0.0;
+    var x1 = 0.0;
+    var y = 1.0;
+    var b0 = 0.0;
+    var b1 = 0.0;
+    var best = y;
+    var g = default<mt::Twister>();
+    mt::seed(g, SEED as u32);
+    var temp = 1.0;
+    var i = 0;
+    while i < 100000 {
+        var n0 = x0 + temp * (mt::next_real(g) * 2.0 - 1.0);
+        var n1 = x1 + temp * (mt::next_real(g) * 2.0 - 1.0);
+        if n0 < -4.0 { n0 = -4.0; }
+        if n0 > 4.0 { n0 = 4.0; }
+        if n1 < -4.0 { n1 = -4.0; }
+        if n1 > 4.0 { n1 = 4.0; }
+        var p: f64[2] = [n0, n1];
+        let nf, ok = rosenbrock(p);
+        if ok {
+            let d = nf - y;
+            var take = d <= 0.0;
+            if !take { take = exp(-d / temp) > mt::next_real(g); }
+            if take {
+                x0 = n0;
+                x1 = n1;
+                y = nf;
+            }
+            if nf < best {
+                best = nf;
+                b0 = n0;
+                b1 = n1;
+            }
+        }
+        i += 1;
+        if i % 400 == 0 {
+            x0 = b0;
+            x1 = b1;
+            y = best;
+        }
+        temp *= 0.9997;
+    }
+    out.clear();
+    out.push(b0);
+    out.push(b1);
+    return best, true;
 }
