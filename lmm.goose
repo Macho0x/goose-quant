@@ -68,3 +68,44 @@ fn one_step(forward: f64, forward_strike: f64, vol: f64, expiry: f64, discount: 
     if is_nan(mean_call) || is_inf(mean_call) || is_nan(err_call) || is_inf(err_call) { return 0.0, 0.0, 0.0, 0.0, false; }
     return mean_fwd, err_fwd, mean_call, err_call, true;
 }
+
+// First nine market vols from marketmodel.cpp setup(). Displacement is 0,
+// so the lognormal vol is the market vol. Five semiannual years give nine
+// forwards; each is evolved in its own payment measure by one_step.
+// Reseeding leaves the first rate's draws unchanged.
+const MKT_VOL: f64[9] = [
+    0.15541283,
+    0.18719678,
+    0.20890740,
+    0.22318179,
+    0.23212717,
+    0.23731450,
+    0.23988649,
+    0.24066384,
+    0.24023111,
+];
+
+fn one_step_rates(seed: i64, paths: i64) -> f64[9], f64[9], f64[9], f64[9], bool {
+    var mean_fwd: f64[9] = [0.0; 9];
+    var err_fwd: f64[9] = [0.0; 9];
+    var mean_call: f64[9] = [0.0; 9];
+    var err_call: f64[9] = [0.0; 9];
+    let accrual = 0.5;
+    let displacement = 0.0;
+    var discount = 0.95;
+    var i: i64 = 0;
+    while i < 9 {
+        let forward = 0.03 + 0.0010 * (i as f64);
+        let payment = discount / (1.0 + forward * accrual);
+        let expiry = accrual * ((i + 1) as f64);
+        let got_fwd, got_ferr, got_call, got_cerr, ok = one_step(forward, forward + 0.01, MKT_VOL[i], expiry, payment, accrual, displacement, seed, paths);
+        if !ok { return mean_fwd, err_fwd, mean_call, err_call, false; }
+        mean_fwd[i] = got_fwd;
+        err_fwd[i] = got_ferr;
+        mean_call[i] = got_call;
+        err_call[i] = got_cerr;
+        discount = payment;
+        i += 1;
+    }
+    return mean_fwd, err_fwd, mean_call, err_call, true;
+}
